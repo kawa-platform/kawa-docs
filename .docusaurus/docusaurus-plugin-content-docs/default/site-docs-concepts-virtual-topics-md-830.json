@@ -1,0 +1,28 @@
+{
+  "id": "concepts/virtual-topics",
+  "title": "Virtual topics",
+  "description": "Virtual topics let clients use virtual topic names while the cluster only ever sees physical topics. The gateway",
+  "source": "@site/docs/concepts/virtual-topics.md",
+  "sourceDirName": "concepts",
+  "slug": "/concepts/virtual-topics",
+  "permalink": "/docs/concepts/virtual-topics",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://GITHUB_URL/edit/main/docs/docs/concepts/virtual-topics.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 1,
+  "frontMatter": {
+    "title": "Virtual topics",
+    "sidebar_position": 1
+  },
+  "sidebar": "docs",
+  "previous": {
+    "title": "Concepts",
+    "permalink": "/docs/category/concepts"
+  },
+  "next": {
+    "title": "Architecture",
+    "permalink": "/docs/concepts/architecture"
+  }
+}

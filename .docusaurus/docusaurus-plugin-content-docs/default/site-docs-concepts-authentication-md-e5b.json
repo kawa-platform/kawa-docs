@@ -1,0 +1,28 @@
+{
+  "id": "concepts/authentication",
+  "title": "Authentication",
+  "description": "kawa terminates client authentication itself. Clients authenticate to kawa directly via the standard Kafka SASL",
+  "source": "@site/docs/concepts/authentication.md",
+  "sourceDirName": "concepts",
+  "slug": "/concepts/authentication",
+  "permalink": "/docs/concepts/authentication",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://GITHUB_URL/edit/main/docs/docs/concepts/authentication.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 3,
+  "frontMatter": {
+    "title": "Authentication",
+    "sidebar_position": 3
+  },
+  "sidebar": "docs",
+  "previous": {
+    "title": "Architecture",
+    "permalink": "/docs/concepts/architecture"
+  },
+  "next": {
+    "title": "Access control (RBAC)",
+    "permalink": "/docs/concepts/rbac"
+  }
+}

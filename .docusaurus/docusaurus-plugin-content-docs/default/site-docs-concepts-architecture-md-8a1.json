@@ -1,0 +1,28 @@
+{
+  "id": "concepts/architecture",
+  "title": "Architecture",
+  "description": "kawa is a Netty-based reverse proxy that speaks the Kafka wire protocol. It decodes requests, runs them through an",
+  "source": "@site/docs/concepts/architecture.md",
+  "sourceDirName": "concepts",
+  "slug": "/concepts/architecture",
+  "permalink": "/docs/concepts/architecture",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://GITHUB_URL/edit/main/docs/docs/concepts/architecture.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 2,
+  "frontMatter": {
+    "title": "Architecture",
+    "sidebar_position": 2
+  },
+  "sidebar": "docs",
+  "previous": {
+    "title": "Virtual topics",
+    "permalink": "/docs/concepts/virtual-topics"
+  },
+  "next": {
+    "title": "Authentication",
+    "permalink": "/docs/concepts/authentication"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "id": "concepts/rbac",
+  "title": "Access control (RBAC)",
+  "description": "kawa enforces role-based access control on the client-to-broker path. Once",
+  "source": "@site/docs/concepts/rbac.md",
+  "sourceDirName": "concepts",
+  "slug": "/concepts/rbac",
+  "permalink": "/docs/concepts/rbac",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://GITHUB_URL/edit/main/docs/docs/concepts/rbac.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 4,
+  "frontMatter": {
+    "title": "Access control (RBAC)",
+    "sidebar_position": 4
+  },
+  "sidebar": "docs",
+  "previous": {
+    "title": "Authentication",
+    "permalink": "/docs/concepts/authentication"
+  },
+  "next": {
+    "title": "Plugins",
+    "permalink": "/docs/concepts/plugins"
+  }
+}
