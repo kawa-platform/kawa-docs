@@ -1,26 +1,47 @@
-import {themes as prismThemes} from 'prism-react-renderer';
 import type {Config} from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
-
-// TODO: replace the GITHUB_URL placeholder with the real repository URL.
+import {kawaDark, kawaLight} from './src/prismTheme';
 
 const config: Config = {
     title: 'kawa',
-    tagline: 'High-performance Kafka Gateway',
-    favicon: 'img/favicon.ico',
+    tagline: 'Kafka Gateway',
+    favicon: 'img/kawa.svg',
 
-    url: 'https://kawa.example.com',
-    baseUrl: '/',
+    url: 'https://kawa-platform.github.io',
+    baseUrl: '/kawa-docs/',
 
-    organizationName: 'jonasg',
-    projectName: 'kawa',
+    organizationName: 'kawa-platform',
+    projectName: 'kawa-docs',
 
     onBrokenLinks: 'throw',
+
+    // img/kawa.svg (logo and favicon) is served from the shared @kawa/design package.
+    staticDirectories: ['node_modules/@kawa/design/assets'],
 
     i18n: {
         defaultLocale: 'en',
         locales: ['en'],
     },
+
+    // The same fonts and icons as kawa-studio's index.html, so the docs and Studio look alike.
+    headTags: [
+        {tagName: 'link', attributes: {rel: 'preconnect', href: 'https://fonts.googleapis.com'}},
+        {tagName: 'link', attributes: {rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: 'anonymous'}},
+        {
+            tagName: 'link',
+            attributes: {
+                rel: 'stylesheet',
+                href: 'https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap',
+            },
+        },
+        {
+            tagName: 'link',
+            attributes: {
+                rel: 'stylesheet',
+                href: 'https://unpkg.com/@phosphor-icons/web@2.1.1/src/duotone/style.css',
+            },
+        },
+    ],
 
     presets: [
         [
@@ -28,11 +49,12 @@ const config: Config = {
             {
                 docs: {
                     sidebarPath: './sidebars.ts',
-                    editUrl: 'https://GITHUB_URL/edit/main/docs/',
+                    editUrl: 'https://github.com/kawa-platform/kawa-docs/edit/main/',
                 },
                 blog: false,
                 theme: {
-                    customCss: './src/css/custom.css',
+                    // the shared kawa tokens first; custom.css maps them onto Docusaurus
+                    customCss: ['./node_modules/@kawa/design/tokens.css', './src/css/custom.css'],
                 },
             } satisfies Preset.Options,
         ],
@@ -44,6 +66,10 @@ const config: Config = {
         },
         navbar: {
             title: 'kawa',
+            logo: {
+                alt: 'kawa',
+                src: 'img/kawa.svg',
+            },
             items: [
                 {
                     type: 'docSidebar',
@@ -52,56 +78,20 @@ const config: Config = {
                     label: 'Docs',
                 },
                 {
-                    href: 'https://GITHUB_URL',
+                    href: 'https://github.com/kawa-platform/kawa-docs',
                     label: 'GitHub',
                     position: 'right',
                 },
             ],
         },
         footer: {
-            style: 'dark',
-            links: [
-                {
-                    title: 'Docs',
-                    items: [
-                        {
-                            label: 'Introduction',
-                            to: '/docs/intro',
-                        },
-                        {
-                            label: 'Getting started',
-                            to: '/docs/getting-started',
-                        },
-                        {
-                            label: 'Configuration',
-                            to: '/docs/configuration',
-                        },
-                    ],
-                },
-                {
-                    title: 'Reference',
-                    items: [
-                        {
-                            label: 'Kafka APIs',
-                            to: '/docs/reference/kafka-apis',
-                        },
-                    ],
-                },
-                {
-                    title: 'More',
-                    items: [
-                        {
-                            label: 'GitHub',
-                            href: 'https://GITHUB_URL',
-                        },
-                    ],
-                },
-            ],
-            copyright: `Copyright © ${new Date().getFullYear()} kawa. Built with Docusaurus.`,
+            style: 'light',
+            copyright: `© ${new Date().getFullYear()} kawa · Kafka Gateway`,
         },
         prism: {
-            theme: prismThemes.github,
-            darkTheme: prismThemes.dracula,
+            theme: kawaLight,
+            darkTheme: kawaDark,
+            additionalLanguages: ['bash', 'java', 'json'],
         },
     } satisfies Preset.ThemeConfig,
 };

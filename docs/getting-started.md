@@ -5,134 +5,122 @@ sidebar_position: 2
 
 # Getting started
 
-The fastest way to run kawa is the bundled Docker Compose setup, which starts a Kafka broker and a gateway. The gateway
-boots **empty**: no virtual topics are configured and RBAC is **default-deny**, so nothing can be produced or consumed
-until dynamic config is applied (see [Dynamic config](/docs/configuration#dynamic-config)).
+There are two ways to use kawa today. You can **install it with the Helm chart** into a Kubernetes cluster you run,
+which is how you run it for real. Or you can try it on your own machine with **kawa-demo**, which runs kawa with Studio,
+Kafka, a schema registry and a seeded sample workload, on Docker Compose or on minikube, and shows what kawa can do.
 
-## Prerequisites
+## Install with the Helm chart
 
-- Docker (with Compose v2)
-- Kafka command-line tools, including `kafka-console-producer.sh` (available on your `PATH`)
+The chart installs kawa-gateway and kawa-studio together. It is published as the `kawa-gateway` chart at
+`oci://ghcr.io/kawa-platform/charts/kawa-gateway`, and its source is in
+the [kawa-charts](https://github.com/kawa-platform/kawa-charts) repository. You need a Kubernetes cluster and Helm 3.
+You do not need to check anything out.
 
-## Run the demo stack
+The gateway's configuration is the value `gateway.config`. It is the same `config.yaml` that the gateway documents, and
+the chart mounts it unchanged. 
+
+When you do not set an admin password or a token signing key (`gateway.secrets.adminPassword` and
+`gateway.secrets.signingKey`), the chart generates them on first install and stores them in a Secret. The command to
+read the generated password is printed in the install notes. Your configuration refers to them as
+`${KAWA_ADMIN_PASSWORD}` and `${KAWA_SIGNING_KEY}`. Here is a minimal values file. It serves Studio at
+`studio.example.com` and sets the admin login to OAuth:
+
+```yaml
+gateway:
+  config:
+    clusters:
+      default:
+        bootstrapServers: [ kafka.kafka.svc:9092 ]
+    admin:
+      enabled: true
+      auth:
+        type: oauth
+        bootstrapUser:
+          username: admin@example.com
+          password: ${KAWA_ADMIN_PASSWORD}
+        settings:
+          signingKey: ${KAWA_SIGNING_KEY}
+          loginUrl: https://studio.example.com/admin/login
+          redirectUris:
+            - https://studio.example.com/admin/auth/callback
+```
+
+Install the published chart. The chart version pins the images: each release of the chart installs the matching
+kawa-gateway and kawa-studio images, so you do not set image tags yourself.
 
 ```bash
-make up
+helm install kawa oci://ghcr.io/kawa-platform/charts/kawa-gateway --version 0.1.0-rc7 \
+  -n kawa --create-namespace -f my-values.yaml
 ```
 
-This always rebuilds the gateway image and force-recreates the containers, so code and config changes are picked up
-reliably. (A plain `docker compose up` can silently keep running a stale image or container.) The SASL-enabled variant
-is `make up-sasl`; see
-`make help` for the full list of targets.
-
-This starts three services:
-
-| Service      | Image                             | Port                                               |
-|--------------|-----------------------------------|----------------------------------------------------|
-| `kafka`      | `apache/kafka-native:4.3.1`       | `19092` on the host (inspection only)              |
-| `kafka-init` | `apache/kafka:4.3.1`              | creates the physical topic `orders-v2`, then exits |
-| `gateway`    | built from this repo's Dockerfile | `9092` — **connect your clients here**             |
-
-The gateway is mounted with [`docker/gateway.yaml`](https://GITHUB_URL/blob/main/docker/gateway.yaml), which carries
-only startup-only settings:
-
-- a listener on `0.0.0.0:9092`
-- an upstream cluster pointing at `kafka:9092`
-- an advertised listener at `localhost:9092`
-- an admin API on `0.0.0.0:8080`, protected by kawa's built-in OAuth login with the demo user `admin` / `admin`,
-  signed in through kawa studio on `http://localhost:5173`
-  (see [Admin API authentication](/docs/concepts/authentication#admin-api-authentication))
-
-Virtual topics, RBAC, client authentication and governance are not in this file — they are dynamic
-(see [Dynamic config](/docs/configuration#dynamic-config)).
-
-## Configure a virtual topic and produce through the gateway
-
-The `orders.eu` virtual topic no longer ships in the static config. Configure virtual topics at runtime — via the admin
-API or by writing a config-topic snapshot (see
-[Admin API](/docs/configuration#admin-api)). This maps `orders.eu` to the physical topic
-`orders-v2` created by `kafka-init`. Admin API calls need an access token. kawa issues tokens only through a browser
-login (the OAuth authorization code flow), so sign in to kawa studio as `admin` / `admin` and copy the token from the
-browser console:
-
-```js
-JSON.parse(localStorage.getItem('kawa.auth')).accessToken
-```
+To read the generated admin password, read it from the Secret. With the release name `kawa` from the command above, the
+Secret is called `kawa-gateway`:
 
 ```bash
-TOKEN=<the copied token>
+kubectl -n kawa get secret kawa-gateway -o jsonpath='{.data.admin-password}' | base64 -d
 ```
 
-The token is valid for 15 minutes; copy a fresh one when calls start returning `401`.
+The generated values stay the same across upgrades.
+
+Once Studio is reachable, sign in as the bootstrap user. Everything else, including virtual topics, clients, roles and
+governance rules, is configured from Studio or through the admin API. The [configuration reference](/docs/configuration)
+lists every setting, and the [admin API reference](/docs/reference/admin-api) lists every endpoint.
+
+If you run Kubernetes workloads that create topics, the [Kubernetes operator](/docs/operator) can manage virtual topics
+for each team as `VirtualTopic` resources. You install it separately, after the gateway.
+
+## Try it locally with kawa-demo
+
+[kawa-demo](https://github.com/kawa-platform/kawa-demo) allows you to play around with kawa either through docker-compose or kubernetes. 
+
+The demo starts a gateway with virtual topics, SASL clients, RBAC and governance already
+configured, so you can see each feature working before you configure your own. Its README walks through what each part
+shows.
+
+You need the kawa-demo repository and `make`, `curl` and `jq`. Everything else depends on the target you choose.
+
+### Docker Compose
+
+Docker with Compose v2 is the quickest path. From the kawa-demo checkout, run:
 
 ```bash
-curl -X POST http://localhost:8080/topics \
-  -H "Authorization: Bearer $TOKEN" \
-  -H 'Content-Type: application/json' \
-  -d '{"type": "virtual", "name": "orders.eu", "topic": "orders-v2"}'
+make compose-up
 ```
 
-Because RBAC is **default-deny** and client auth is empty on first boot, producing also needs grants. The following
-creates a PLAIN client with broad demo access:
+When it finishes, Studio is at `http://localhost:5173/admin/`. Sign in with `admin@kawa` and the password `admin`. The
+gateway listens for Kafka clients on `localhost:9092`, and its admin API is on `localhost:8080`. Clients log in with
+SASL PLAIN as `spacecraft`, `director`, `systems` or `navigator`, and the password is `<name>-secret`. To change the
+admin password, set `KAWA_ADMIN_PASSWORD` before the first start. It is read only when the admin user is created.
+
+Try the alerts console as the `systems` client, which may read only the alert topic:
 
 ```bash
-curl -X PUT http://localhost:8080/auth/clients/alice \
-  -H "Authorization: Bearer $TOKEN" \
-  -H 'Content-Type: application/json' \
-  -d '{"mechanism":"PLAIN","password":"secret"}'
-curl -X PUT http://localhost:8080/rbac/roles/allow-all \
-  -H "Authorization: Bearer $TOKEN" \
-  -H 'Content-Type: application/json' \
-  -d '{"acls":[{"resource":{"type":"TOPIC","pattern":"","patternType":"PREFIXED"},"operation":"ALL"},{"resource":{"type":"GROUP","pattern":"","patternType":"PREFIXED"},"operation":"ALL"},{"resource":{"type":"CLUSTER"},"operation":"ALL"}]}'
-curl -X PUT http://localhost:8080/rbac/groups/demo \
-  -H "Authorization: Bearer $TOKEN" \
-  -H 'Content-Type: application/json' \
-  -d '{"clients":["alice"],"roles":["allow-all"]}'
+make consume CLIENT=systems TOPIC=telemetry.alerts
 ```
 
-For a Kafka CLI running on the host, create client properties:
+Stop the stack with `make compose-down`.
+
+### kubernetes through minikube
+
+The minikube path runs the same demo inside a Kubernetes cluster, using the kawa chart. You need `minikube`, `kubectl`,
+`helm`, `envsubst` and `docker`. The kawa images are private, so you also need to be logged in to `ghcr.io` with Docker.
+From the kawa-demo checkout, run:
 
 ```bash
-cat > /tmp/kawa-client.properties <<'EOF'
-security.protocol=SASL_PLAINTEXT
-sasl.mechanism=PLAIN
-sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required username="alice" password="secret";
-EOF
+make k8s-up
+make k8s-forward
 ```
 
-Then point the Kafka client at `localhost:9092` (the advertised address in
-`docker/gateway.yaml`) and use the virtual topic name:
+`make k8s-up` starts a minikube profile called `kawa-demo`, so other clusters are left alone. `make k8s-forward`
+forwards Studio to `http://localhost:5173/admin/` and the admin API to `localhost:8080`. Keep it running while you use
+Studio. Sign in as `admin@kawa` with the password `admin`. Read the alerts console with `make k8s-consume`, and stop
+everything with `make k8s-down`.
 
-```bash
-# Produce to the VIRTUAL topic via the gateway
-kafka-console-producer.sh \
-  --bootstrap-server localhost:9092 \
-  --command-config /tmp/kawa-client.properties \
-  --topic orders.eu <<'EOF'
-{"orderId": "1", "region": "eu"}
-EOF
-```
+Image versions are pinned in the demo's `versions.env`. Change a version there, or override it on the command line, for
+example `GATEWAY_VERSION=0.1.0-rc.3 make compose-up`.
 
-```bash
-# The cluster only ever sees the PHYSICAL topic; orders.eu is virtual
-docker compose exec kafka /opt/kafka/bin/kafka-topics.sh \
-  --bootstrap-server kafka:9092 --list
-# -> orders-v2   (orders.eu never existed on the cluster)
-```
+## Where to go next
 
-## Run the gateway without Docker
-
-Build the shaded fat jar and point it at a config file:
-
-```bash
-./mvnw -pl kawa-server -am package
-java -jar kawa-server/target/kawa-server-*.jar --config path/to/config.yaml
-```
-
-If `--config` is omitted, kawa looks for `config.yaml` in the working directory.
-
-## Verify it works
-
-With the stack running, connect any Kafka tool to `localhost:9092`. Metadata requests return a single broker — the
-gateway itself — advertising `localhost:9092`, so every subsequent connection also lands on kawa instead of the real
-cluster.
+The [Virtual topics](/docs/modules/virtual-topics) page explains the feature the demo shows
+first. [Authentication](/docs/modules/authentication) covers client credentials, TLS and admin login,
+and [Access control](/docs/modules/rbac) explains how permissions are evaluated.

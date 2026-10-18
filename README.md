@@ -30,17 +30,6 @@ service.
 
 ## Deployment
 
-Using SSH:
-
-```bash
-USE_SSH=true npm run deploy
-```
-
-Not using SSH:
-
-```bash
-GIT_USER=<Your GitHub username> npm run deploy
-```
-
-If you are using GitHub Pages for hosting, this command is a convenient way to build the website and push to the
-`gh-pages` branch.
+Pushing to `main` runs `.github/workflows/deploy.yml`, which builds the site and publishes it to
+https://kawa-platform.github.io/kawa-docs/. It can also be run by hand from the Actions tab. The repository's
+Pages source must be set to **GitHub Actions**.

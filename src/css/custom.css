@@ -1,30 +1,562 @@
-/**
- * Any CSS included here will be global. The classic template
- * bundles Infima by default. Infima is a CSS framework designed to
- * work well for content-centric websites.
+/*
+ * kawa docs theme: the kawa design system (@kawa/design, shared with kawa-studio) on Docusaurus.
+ *
+ * The tokens come from @kawa/design/tokens.css, loaded before this file (see customCss in
+ * docusaurus.config.ts); this file only maps them onto Infima and Docusaurus's components.
+ * Docusaurus switches themes with the same html[data-theme] attribute as Studio.
  */
 
-/* You can override the default Infima variables here. */
-:root {
-    --ifm-color-primary: #2e8555;
-    --ifm-color-primary-dark: #29784c;
-    --ifm-color-primary-darker: #277148;
-    --ifm-color-primary-darkest: #205d3b;
-    --ifm-color-primary-light: #33925d;
-    --ifm-color-primary-lighter: #359962;
-    --ifm-color-primary-lightest: #3cad6e;
-    --ifm-code-font-size: 95%;
-    --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+/* ── Docs-only tokens ──────────────────────────────────────────────────────────────────────── */
+
+:root,
+html[data-theme='dark'] {
+    --nav-text: var(--color-neutral-700);
 }
 
-/* For readability concerns, you should choose a lighter palette in dark mode. */
-[data-theme='dark'] {
-    --ifm-color-primary: #25c2a0;
-    --ifm-color-primary-dark: #21af90;
-    --ifm-color-primary-darker: #1fa588;
-    --ifm-color-primary-darkest: #1a8870;
-    --ifm-color-primary-light: #29d5b0;
-    --ifm-color-primary-lighter: #32d8b4;
-    --ifm-color-primary-lightest: #4fddbf;
-    --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+html[data-theme='light'] {
+    --nav-text: var(--muted);
+}
+
+/* ── Infima mapped onto the tokens ─────────────────────────────────────────────────────────── */
+
+:root,
+html[data-theme='dark'],
+html[data-theme='light'] {
+    --ifm-color-primary: var(--color-accent);
+    --ifm-color-primary-dark: var(--color-accent-700);
+    --ifm-color-primary-darker: var(--color-accent-700);
+    --ifm-color-primary-darkest: var(--color-accent-800);
+    --ifm-color-primary-light: var(--color-accent-400);
+    --ifm-color-primary-lighter: var(--color-accent-400);
+    --ifm-color-primary-lightest: var(--color-accent-400);
+    --ifm-link-color: var(--color-accent-700);
+    --ifm-link-hover-color: var(--color-accent-400);
+    --ifm-link-hover-decoration: none;
+
+    --ifm-background-color: var(--color-bg);
+    --ifm-background-surface-color: var(--color-surface);
+    --ifm-card-background-color: var(--color-surface);
+    --ifm-font-color-base: var(--color-text);
+    --ifm-heading-color: var(--color-text);
+    --ifm-color-content-secondary: var(--muted);
+    --ifm-color-emphasis-600: var(--muted);
+    --ifm-color-emphasis-700: var(--muted);
+    --ifm-color-emphasis-300: var(--chrome-line);
+    --ifm-color-emphasis-200: var(--chrome-line);
+    --ifm-toc-border-color: var(--chrome-line);
+    --ifm-hr-border-color: var(--chrome-line);
+    --ifm-table-border-color: var(--chrome-line);
+
+    --ifm-font-family-base: var(--font-body);
+    --ifm-heading-font-family: var(--font-heading);
+    --ifm-font-family-monospace: var(--mono);
+    --ifm-font-size-base: 16px;
+    --ifm-line-height-base: 1.65;
+    --ifm-heading-font-weight: 600;
+    --ifm-code-font-size: 88%;
+
+    --ifm-global-radius: var(--radius-md);
+    --ifm-code-border-radius: var(--radius-sm);
+    --ifm-button-border-radius: 999px;
+    --ifm-global-shadow-lw: var(--shadow-sm);
+    --ifm-global-shadow-md: var(--shadow-md);
+
+    --ifm-navbar-height: 64px;
+    --ifm-navbar-background-color: transparent;
+    --ifm-navbar-shadow: none;
+    --ifm-menu-color: var(--nav-text);
+    --ifm-menu-color-background-hover: color-mix(in srgb, var(--color-text) 6%, transparent);
+    --ifm-menu-color-background-active: var(--nav-active-bg);
+    --ifm-menu-color-active: var(--nav-active-fg);
+    --ifm-footer-background-color: transparent;
+
+    --docusaurus-highlighted-code-line-bg: color-mix(in srgb, var(--color-accent) 12%, transparent);
+}
+
+/* ── Base ──────────────────────────────────────────────────────────────────────────────────── */
+
+body {
+    background:
+        radial-gradient(1100px 620px at 100% -8%, var(--glow-1), transparent 70%),
+        radial-gradient(900px 560px at -8% 108%, var(--glow-2), transparent 70%),
+        var(--color-bg);
+    background-attachment: fixed;
+    color: var(--color-text);
+    -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+    background: color-mix(in srgb, var(--color-accent) 30%, transparent);
+}
+
+:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+}
+
+* {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--color-text) 26%, transparent) transparent;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    line-height: 1.12;
+    letter-spacing: -0.015em;
+}
+
+.markdown h1,
+article header h1 {
+    font-size: 2.1rem;
+    font-weight: 650;
+    letter-spacing: -0.025em;
+}
+
+.markdown h2 {
+    font-size: 1.5rem;
+    margin-top: 2.6rem;
+}
+
+.markdown h3 {
+    font-size: 1.15rem;
+    margin-top: 2rem;
+}
+
+/* Studio's gold section marker */
+.markdown h4 {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 15px;
+}
+
+.markdown h4::before {
+    content: '';
+    flex: none;
+    width: 4px;
+    height: 14px;
+    border-radius: 4px;
+    background: var(--brand);
+}
+
+.markdown > p,
+.markdown li {
+    color: color-mix(in srgb, var(--color-text) 88%, var(--muted));
+}
+
+/* ── Navbar: Studio's floating glass top bar ───────────────────────────────────────────────── */
+
+.navbar {
+    position: sticky;
+    top: 12px;
+    margin: 12px 20px 0;
+    padding: 8px 10px 8px 14px;
+    background: var(--panel);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border: 1px solid var(--panel-line);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-sm);
+}
+
+.navbar__brand {
+    gap: 11px;
+    margin-right: 20px;
+}
+
+.navbar__logo {
+    height: 38px;
+    margin-right: 0;
+}
+
+.navbar__logo img {
+    border-radius: 12px;
+    box-shadow:
+        0 8px 18px -8px color-mix(in srgb, var(--brand) 80%, transparent),
+        inset 0 1px 0 color-mix(in srgb, #fff 35%, transparent);
+}
+
+/* the wordmark with Studio's "Kafka Gateway" kicker underneath */
+.navbar__title {
+    display: flex;
+    flex-direction: column;
+    font-family: var(--font-heading);
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+}
+
+.navbar__title::after {
+    content: 'Kafka Gateway';
+    font-size: 11.5px;
+    font-weight: 400;
+    letter-spacing: 0;
+    color: var(--muted);
+}
+
+.navbar__link {
+    padding: 7px 14px;
+    border-radius: 999px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--nav-text);
+    transition: background 140ms ease, color 140ms ease;
+}
+
+.navbar__link:hover {
+    background: color-mix(in srgb, var(--color-text) 6%, transparent);
+    color: var(--color-text);
+}
+
+.navbar__link--active {
+    background: var(--nav-active-bg);
+    color: var(--nav-active-fg);
+    font-weight: 600;
+    box-shadow: var(--shadow-sm);
+}
+
+.navbar .clean-btn,
+.navbar__toggle {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    color: var(--muted);
+    transition: background 140ms ease, color 140ms ease;
+}
+
+.navbar .clean-btn:hover {
+    background: color-mix(in srgb, var(--color-text) 6%, transparent);
+    color: var(--color-text);
+}
+
+.navbar-sidebar {
+    background: var(--chrome);
+}
+
+.navbar-sidebar__brand {
+    box-shadow: none;
+    border-bottom: 1px solid var(--chrome-line);
+}
+
+/* ── Doc sidebar: Studio's sidebar navigation ──────────────────────────────────────────────── */
+
+@media (min-width: 997px) {
+    .theme-doc-sidebar-container {
+        border-right: none !important;
+    }
+
+    .theme-doc-sidebar-container > div {
+        top: 88px !important;
+        height: calc(100vh - 100px) !important;
+        margin: 12px 0 12px 12px;
+        background: var(--panel);
+        backdrop-filter: blur(18px);
+        -webkit-backdrop-filter: blur(18px);
+        border: 1px solid var(--panel-line);
+        border-radius: var(--radius-xl);
+        box-shadow: var(--shadow-md);
+        overflow: hidden;
+    }
+
+    .theme-doc-sidebar-menu {
+        padding: 10px 12px 16px;
+    }
+}
+
+.menu__link,
+.menu__caret {
+    border-radius: 12px;
+}
+
+.menu__link {
+    padding: 9px 12px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--nav-text);
+    transition: background 140ms ease, color 140ms ease;
+}
+
+.menu__link:hover {
+    color: var(--color-text);
+}
+
+.menu__link--active:not(.menu__link--sublist) {
+    background: var(--nav-active-bg);
+    color: var(--nav-active-fg);
+    font-weight: 600;
+    box-shadow: var(--shadow-sm);
+}
+
+/* categories read like Studio's group titles */
+.menu__list-item-collapsible .menu__link--sublist,
+.menu__link--sublist-caret {
+    margin-top: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--faint);
+}
+
+.menu__list-item-collapsible:hover {
+    background: transparent;
+}
+
+.menu__list .menu__list {
+    margin-top: 2px;
+}
+
+/* ── Breadcrumbs, TOC, pagination, footer ──────────────────────────────────────────────────── */
+
+.breadcrumbs__link {
+    font-size: 13.5px;
+    color: var(--muted);
+    background: transparent;
+}
+
+.breadcrumbs__item--active .breadcrumbs__link {
+    color: var(--color-text);
+    font-weight: 600;
+    background: transparent;
+}
+
+.table-of-contents__link {
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.table-of-contents__link--active {
+    color: var(--color-accent-700);
+    font-weight: 500;
+}
+
+.pagination-nav__link {
+    background: var(--color-surface);
+    border: 1px solid var(--panel-line);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    transition: border-color 140ms ease;
+}
+
+.pagination-nav__link:hover {
+    border-color: var(--color-accent);
+}
+
+.pagination-nav__sublabel {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--faint);
+}
+
+.footer {
+    padding: 24px 0 32px;
+    font-size: 12.5px;
+    color: var(--faint);
+}
+
+.footer__copyright {
+    color: var(--faint);
+}
+
+/* ── Code ──────────────────────────────────────────────────────────────────────────────────── */
+
+/* Studio's .pre: surface, hairline border and a gold left rule */
+.theme-code-block {
+    border: 1px solid var(--chrome-line);
+    border-left: 3px solid var(--brand);
+    border-radius: var(--radius-md);
+    box-shadow: none;
+    --prism-background-color: var(--color-surface);
+}
+
+.theme-code-block pre,
+.prism-code {
+    font-size: 13px;
+    line-height: 1.65;
+}
+
+[class*='codeBlockTitle'] {
+    border-bottom: 1px solid var(--chrome-line);
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+}
+
+:not(pre) > code {
+    padding: 1px 6px;
+    border: 1px solid var(--chrome-line);
+    background: var(--color-surface);
+    color: var(--color-text);
+    font-weight: 500;
+    vertical-align: baseline;
+}
+
+a > code {
+    color: inherit;
+}
+
+/* ── Tables: Studio's .table inside its panel ──────────────────────────────────────────────── */
+
+.markdown table {
+    display: table;
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    overflow: hidden;
+    font-size: 14px;
+    background: var(--color-surface);
+    border: 1px solid var(--panel-line);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+}
+
+.markdown table thead tr {
+    border: none;
+}
+
+.markdown table th {
+    padding: 11px 16px;
+    text-align: left;
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    color: var(--faint);
+    background: color-mix(in srgb, var(--color-text) 2.5%, transparent);
+    border: none;
+    border-bottom: 1px solid var(--chrome-line);
+}
+
+.markdown table td {
+    padding: 11px 16px;
+    border: none;
+    border-bottom: 1px solid var(--chrome-line);
+    vertical-align: top;
+}
+
+.markdown table tr {
+    background: transparent;
+    border: none;
+}
+
+.markdown table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.markdown table tbody tr:hover {
+    background: var(--row-hover);
+}
+
+/* wide tables scroll inside their panel instead of the page */
+@media (max-width: 996px) {
+    .markdown table {
+        display: block;
+        overflow-x: auto;
+    }
+}
+
+/* ── Admonitions: Studio's banners ─────────────────────────────────────────────────────────── */
+
+.theme-admonition {
+    --tone: var(--color-accent);
+    padding: 12px 16px 12px 14px;
+    border: 1px solid color-mix(in srgb, var(--tone) 32%, transparent);
+    border-radius: var(--radius-lg);
+    background: color-mix(in srgb, var(--tone) 10%, var(--color-surface));
+    box-shadow: var(--shadow-sm);
+    color: var(--color-text);
+    font-size: 14.5px;
+    line-height: 1.55;
+}
+
+.theme-admonition-tip {
+    --tone: var(--success);
+}
+
+.theme-admonition-warning,
+.theme-admonition-caution {
+    --tone: var(--warning);
+}
+
+.theme-admonition-danger {
+    --tone: var(--error);
+}
+
+.theme-admonition [class*='admonitionHeading'] {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+    font-size: 13.5px;
+    font-weight: 600;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--color-text);
+}
+
+.theme-admonition [class*='admonitionIcon'] {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    margin-right: 0;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--tone) 16%, transparent);
+}
+
+.theme-admonition [class*='admonitionIcon'] svg {
+    width: 16px;
+    height: 16px;
+    fill: var(--tone);
+}
+
+.theme-admonition a {
+    color: var(--color-accent-700);
+    text-decoration: underline;
+    text-decoration-color: color-mix(in srgb, var(--color-accent-700) 40%, transparent);
+}
+
+/* ── Buttons: Studio's pill buttons ────────────────────────────────────────────────────────── */
+
+.button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 40px;
+    padding: 9px 20px;
+    font-size: 14.5px;
+    font-weight: 500;
+    border-radius: 999px;
+    transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+
+.button.button--primary {
+    background: var(--color-accent);
+    border-color: transparent;
+    color: var(--on-accent);
+    box-shadow:
+        0 6px 16px -6px color-mix(in srgb, var(--color-accent) 60%, transparent),
+        inset 0 1px 0 color-mix(in srgb, #fff 18%, transparent);
+}
+
+.button.button--primary:hover {
+    background: var(--color-accent-400);
+    border-color: transparent;
+    color: var(--on-accent);
+}
+
+.button.button--secondary:not(.button--outline) {
+    background: var(--color-surface);
+    border: 1px solid var(--chrome-line);
+    color: var(--color-text);
+    box-shadow: var(--shadow-sm);
+}
+
+.button.button--secondary:not(.button--outline):hover {
+    background: var(--color-surface);
+    border-color: color-mix(in srgb, var(--color-text) 22%, transparent);
+    color: var(--color-text);
 }
