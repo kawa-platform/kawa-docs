@@ -78,7 +78,7 @@ const config: Config = {
                     label: 'Docs',
                 },
                 {
-                    href: 'https://github.com/kawa-platform/kawa-docs',
+                    href: 'https://github.com/kawa-platform',
                     label: 'GitHub',
                     position: 'right',
                 },
@@ -86,6 +86,24 @@ const config: Config = {
         },
         footer: {
             style: 'light',
+            links: [
+                {
+                    title: 'Source',
+                    items: [
+                        {label: 'kawa-gateway', href: 'https://github.com/kawa-platform/kawa-gateway'},
+                        {label: 'kawa-studio', href: 'https://github.com/kawa-platform/kawa-studio'},
+                        {label: 'kawa-operator', href: 'https://github.com/kawa-platform/kawa-operator'},
+                        {label: 'kawa-charts', href: 'https://github.com/kawa-platform/kawa-charts'},
+                    ],
+                },
+                {
+                    title: 'More',
+                    items: [
+                        {label: 'GitHub organization', href: 'https://github.com/kawa-platform'},
+                        {label: 'These docs', href: 'https://github.com/kawa-platform/kawa-docs'},
+                    ],
+                },
+            ],
             copyright: `© ${new Date().getFullYear()} kawa · Kafka Gateway`,
         },
         prism: {
