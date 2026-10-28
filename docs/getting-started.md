@@ -5,27 +5,29 @@ sidebar_position: 2
 
 # Getting started
 
-There are two ways to use kawa today. You can **install it with the Helm chart** into a Kubernetes cluster you run,
-which is how you run it for real. Or you can try it on your own machine with **kawa-demo**, which runs kawa with Studio,
-Kafka, a schema registry and a seeded sample workload, on Docker Compose or on minikube, and shows what kawa can do.
+Kawa is made of these components:
+
+| Component   | What it is                                                            |
+|-------------|-----------------------------------------------------------------------|
+| Gateway     | The main component that amplifies and protects your Kafka clusters.   |
+| Studio      | Web admin UI for the Gateway.                                         |
+| Operator    | Kubernetes operator that manages Kawa's resources                     |
+| Helm charts | `kawa` installs the gateway and Studio, `kawa-operator` the operator. |
+
+![Kafka clients connect to the kawa gateway on 9092; the platform team uses Studio, which calls the gateway's admin API, or declares resources that the operator applies; the kawa chart installs gateway and Studio, the kawa-operator chart the operator; the gateway talks to the Kafka cluster and keeps its configuration in the __kawa topic](./img/components.svg)
+
+As kawa has been built with a cloud native mindset, the easiest way to get started is to use the Helm chart.
 
 ## Install with the Helm chart
 
-The chart installs kawa-gateway and kawa-studio together. It is published as the `kawa-gateway` chart at
-`oci://ghcr.io/kawa-platform/charts/kawa-gateway`, and its source is in
-the [kawa-charts](https://github.com/kawa-platform/kawa-charts) repository. You need a Kubernetes cluster and Helm 3.
-You do not need to check anything out.
+The `kawa` chart installs the gateway and Studio. You need a Kubernetes cluster, Helm 3 and a Kafka cluster the
+gateway can reach.
 
-The gateway's configuration is the value `gateway.config`. It is the same `config.yaml` that the gateway documents, and
-the chart mounts it unchanged. 
+### 1. Install
 
-When you do not set an admin password or a token signing key (`gateway.secrets.adminPassword` and
-`gateway.secrets.signingKey`), the chart generates them on first install and stores them in a Secret. The command to
-read the generated password is printed in the install notes. Your configuration refers to them as
-`${KAWA_ADMIN_PASSWORD}` and `${KAWA_SIGNING_KEY}`. Here is a minimal values file. It serves Studio at
-`studio.example.com` and sets the admin login to OAuth:
+Write a values file. Set `bootstrapServers` to your Kafka cluster; everything else can stay as it is:
 
-```yaml
+```yaml title="my-values.yaml"
 gateway:
   config:
     clusters:
@@ -40,87 +42,57 @@ gateway:
           password: ${KAWA_ADMIN_PASSWORD}
         settings:
           signingKey: ${KAWA_SIGNING_KEY}
-          loginUrl: https://studio.example.com/admin/login
+          loginUrl: http://localhost:5173/admin/login
           redirectUris:
-            - https://studio.example.com/admin/auth/callback
+            - http://localhost:5173/admin/auth/callback
+      cors:
+        allowedOrigins: [ http://localhost:5173 ]
 ```
 
-Install the published chart. The chart version pins the images: each release of the chart installs the matching
-kawa-gateway and kawa-studio images, so you do not set image tags yourself.
+Install the chart:
 
 ```bash
-helm install kawa oci://ghcr.io/kawa-platform/charts/kawa-gateway --version 0.1.0-rc7 \
-  -n kawa --create-namespace -f my-values.yaml
+helm install kawa oci://ghcr.io/kawa-platform/charts/kawa --version 0.1.0-rc.4 \
+  -n kawa --create-namespace -f my-values.yaml --wait
 ```
 
-To read the generated admin password, read it from the Secret. With the release name `kawa` from the command above, the
-Secret is called `kawa-gateway`:
+The chart version pins the gateway and Studio images, so you do not set image tags yourself.
+
+### 2. Open Studio
+
+Forward Studio and the admin API to your machine, and keep the command running:
+
+```bash
+kubectl -n kawa port-forward svc/kawa-studio 5173:80 &
+kubectl -n kawa port-forward svc/kawa-gateway 8080:8080
+```
+
+Open `http://localhost:5173/admin/` and sign in as `admin@example.com`. The chart generated the password on install:
 
 ```bash
 kubectl -n kawa get secret kawa-gateway -o jsonpath='{.data.admin-password}' | base64 -d
 ```
 
-The generated values stay the same across upgrades.
+The generated password and signing key stay the same across upgrades. To choose your own, set
+`gateway.secrets.adminPassword` and `gateway.secrets.signingKey`.
 
-Once Studio is reachable, sign in as the bootstrap user. Everything else, including virtual topics, clients, roles and
-governance rules, is configured from Studio or through the admin API. The [configuration reference](/docs/configuration)
-lists every setting, and the [admin API reference](/docs/reference/admin-api) lists every endpoint.
+### 3. Connect a client
 
-If you run Kubernetes workloads that create topics, the [Kubernetes operator](/docs/operator) can manage virtual topics
-for each team as `VirtualTopic` resources. You install it separately, after the gateway.
+Kafka clients inside the cluster connect to `kawa-gateway.kawa.svc:9092` instead of your brokers. Before a client can
+log in, create it in Studio, give it a role, and add any virtual topics it should use.
 
-## Try it locally with kawa-demo
+Clients outside the cluster need an address the gateway advertises: set `advertised.host` in the gateway config and
+`gateway.service.type` to `LoadBalancer` or `NodePort`.
 
-[kawa-demo](https://github.com/kawa-platform/kawa-demo) allows you to play around with kawa either through docker-compose or kubernetes. 
+### Next steps
 
-The demo starts a gateway with virtual topics, SASL clients, RBAC and governance already
-configured, so you can see each feature working before you configure your own. Its README walks through what each part
-shows.
-
-You need the kawa-demo repository and `make`, `curl` and `jq`. Everything else depends on the target you choose.
-
-### Docker Compose
-
-Docker with Compose v2 is the quickest path. From the kawa-demo checkout, run:
-
-```bash
-make compose-up
-```
-
-When it finishes, Studio is at `http://localhost:5173/admin/`. Sign in with `admin@kawa` and the password `admin`. The
-gateway listens for Kafka clients on `localhost:9092`, and its admin API is on `localhost:8080`. Clients log in with
-SASL PLAIN as `spacecraft`, `director`, `systems` or `navigator`, and the password is `<name>-secret`. To change the
-admin password, set `KAWA_ADMIN_PASSWORD` before the first start. It is read only when the admin user is created.
-
-Try the alerts console as the `systems` client, which may read only the alert topic:
-
-```bash
-make consume CLIENT=systems TOPIC=telemetry.alerts
-```
-
-Stop the stack with `make compose-down`.
-
-### kubernetes through minikube
-
-The minikube path runs the same demo inside a Kubernetes cluster, using the kawa chart. You need `minikube`, `kubectl`,
-`helm`, `envsubst` and `docker`. The kawa images are private, so you also need to be logged in to `ghcr.io` with Docker.
-From the kawa-demo checkout, run:
-
-```bash
-make k8s-up
-make k8s-forward
-```
-
-`make k8s-up` starts a minikube profile called `kawa-demo`, so other clusters are left alone. `make k8s-forward`
-forwards Studio to `http://localhost:5173/admin/` and the admin API to `localhost:8080`. Keep it running while you use
-Studio. Sign in as `admin@kawa` with the password `admin`. Read the alerts console with `make k8s-consume`, and stop
-everything with `make k8s-down`.
-
-Image versions are pinned in the demo's `versions.env`. Change a version there, or override it on the command line, for
-example `GATEWAY_VERSION=0.1.0-rc.3 make compose-up`.
+- To serve Studio on a real host, set `ingress.enabled`, `ingress.host` and its `tls`, and
+  change `loginUrl`, `redirectUris` and `allowedOrigins` to that host.
+- The [configuration reference](/docs/configuration) lists every gateway setting, and the
+  admin API reference is served at `/docs` on the admin port.
+- To manage virtual topics as `VirtualTopic` resources, install the [Kubernetes operator](/docs/operator) next to the gateway.
 
 ## Where to go next
 
-The [Virtual topics](/docs/modules/virtual-topics) page explains the feature the demo shows
-first. [Authentication](/docs/modules/authentication) covers client credentials, TLS and admin login,
+The [Virtual topics](/docs/modules/virtual-topics) page explains kawa's core feature. [Authentication](/docs/modules/authentication) covers client credentials, TLS and admin login,
 and [Access control](/docs/modules/rbac) explains how permissions are evaluated.

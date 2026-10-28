@@ -31,12 +31,6 @@ const FEATURES: Feature[] = [
         description: 'Rules for topic names, sizing and groups, judged on create, alter and delete.',
         to: '/docs/modules/governance',
     },
-    {
-        icon: 'ph-git-fork',
-        title: 'Architecture',
-        description: 'What kawa does with each request, from login through access control to the broker.',
-        to: '/docs/modules/architecture',
-    },
 ];
 
 function Hero(): ReactNode {
@@ -48,10 +42,9 @@ function Hero(): ReactNode {
                 <span className={styles.wordmark}>{siteConfig.title}</span>
             </div>
             <p className={styles.kicker}>{siteConfig.tagline}</p>
-            <h1 className={styles.tagline}>One gateway in front of your Kafka cluster.</h1>
+            <h1 className={styles.tagline}>Kafka, amplified.</h1>
             <p className={styles.pitch}>
-                kawa sits between your clients and Kafka: it authenticates them, authorizes every request, maps virtual
-                topics onto physical ones and enforces governance rules, without changing a single client.
+                kawa sits between your clients and your Kafka clusters. More than a proxy, it amplifies what your clusters can do, without changing a single client.
             </p>
             <div className={styles.actions}>
                 <Link className="button button--primary" to="/docs/getting-started">

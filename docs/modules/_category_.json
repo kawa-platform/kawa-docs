@@ -3,6 +3,6 @@
   "position": 5,
   "link": {
     "type": "generated-index",
-    "description": "The features kawa applies to Kafka traffic: virtual topics, authentication, access control, governance and plugins."
+    "description": "The features kawa applies to Kafka traffic: virtual topics, authentication, access control and governance."
   }
 }

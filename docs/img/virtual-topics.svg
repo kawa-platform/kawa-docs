@@ -1,0 +1,141 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 314" width="920" height="314" role="img" aria-labelledby="title desc">
+  <title id="title">Virtual topics next to physical topics</title>
+  <desc id="desc">Consumers use the virtual topics orders.eu, orders.us and orders, and the physical topic payments. On the kawa gateway, orders.eu keeps records whose header region is eu, orders.us those whose region is us, and orders has no filter; all three map to the physical topic orders-v2, which is hidden from clients. payments is not a virtual topic and passes through unchanged.</desc>
+  <style>
+    /* kawa-design tokens (tokens.css): dark by default, like kawa studio; light follows the viewer's theme. */
+    svg {
+      --bg: #020b18; --surface: #07182b; --elevated: #0c2238; --line: rgba(173, 192, 210, .13); --divider: #19344b;
+      --text: #ffffff; --muted: #adc0d2;
+      --accent: #22d3ee; --accent-soft: #07293a; --brand: #c9a227; --on-brand: #020b18;
+      --warning: #fbbf24; --warning-soft: rgba(251, 191, 36, .08); --warning-line: rgba(251, 191, 36, .45);
+      --danger: #f87171; --code: #e18bb7; --flow: rgba(173, 192, 210, .45);
+      --glow-1: rgba(34, 211, 238, .10); --glow-2: rgba(201, 162, 39, .08);
+    }
+    @media (prefers-color-scheme: light) {
+      svg {
+        --bg: #eef2f7; --surface: #ffffff; --elevated: #f1f5f9; --line: rgba(11, 26, 46, .09); --divider: #dbe2ea;
+        --text: #020617; --muted: #475569;
+        --accent: #0891b2; --accent-soft: #e0f2fe; --brand: #f5c518; --on-brand: #0f172a;
+        --warning: #b45309; --warning-soft: rgba(217, 119, 6, .07); --warning-line: rgba(217, 119, 6, .45);
+        --danger: #dc2626; --code: #b0457c; --flow: rgba(71, 85, 105, .45);
+        --glow-1: rgba(8, 145, 178, .07); --glow-2: rgba(245, 197, 24, .09);
+      }
+    }
+    text { font-family: Geist, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; fill: var(--text); }
+    .mono, .pill-t, .code { font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .bg { fill: var(--bg); }
+    .card { fill: var(--surface); stroke: var(--line); stroke-width: 1; }
+    .row { fill: var(--elevated); stroke: var(--line); stroke-width: 1; }
+    .tile { fill: var(--elevated); stroke: var(--line); stroke-width: 1; }
+    .ico { fill: none; stroke: var(--accent); stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+    .ico-warn { fill: none; stroke: var(--warning); stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+    .brand { fill: var(--brand); }
+    .brand-t { fill: var(--on-brand); font-size: 21px; font-weight: 600; }
+    .h1 { font-size: 17px; font-weight: 600; }
+    .h { font-size: 15px; font-weight: 600; }
+    .d { font-size: 12.5px; fill: var(--muted); }
+    .sec { font-size: 10.5px; font-weight: 500; letter-spacing: .09em; fill: var(--muted); }
+    .sec-v { font-size: 10.5px; font-weight: 500; letter-spacing: .09em; fill: var(--accent); }
+    .mono { font-size: 13.5px; }
+    .code { font-size: 11px; fill: var(--code); }
+    .pill { fill: var(--elevated); }
+    .pill-t { font-size: 11px; fill: var(--muted); }
+    .link { fill: var(--accent-soft); }
+    .link-t { font-size: 11.5px; font-weight: 500; fill: var(--accent); }
+    .dot { fill: var(--brand); }
+    .divider { stroke: var(--divider); stroke-width: 1; }
+    .knob { fill: var(--surface); stroke: var(--line); }
+    .flow { fill: none; stroke: var(--flow); stroke-width: 1.5; }
+    .flow-v { fill: none; stroke: var(--accent); stroke-width: 1.6; }
+    .dash { fill: none; stroke: var(--flow); stroke-width: 1.4; stroke-dasharray: 4 4; }
+    .deny { fill: none; stroke: var(--danger); stroke-width: 1.5; stroke-dasharray: 5 4; }
+    .deny-t { font-size: 11.5px; font-weight: 500; fill: var(--danger); }
+    .warn-box { fill: var(--warning-soft); stroke: var(--warning-line); stroke-width: 1; }
+    .warn-t { font-size: 11.5px; fill: var(--warning); }
+    .head { fill: var(--flow); } .head-v { fill: var(--accent); } .head-d { fill: var(--danger); }
+    .g1 { stop-color: var(--glow-1); } .g1-end { stop-color: var(--glow-1); stop-opacity: 0; }
+    .g2 { stop-color: var(--glow-2); } .g2-end { stop-color: var(--glow-2); stop-opacity: 0; }
+  </style>
+  <defs>
+    <marker id="av" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path class="head-v" d="M0,0 L10,5 L0,10 z"/></marker>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path class="head" d="M0,0 L10,5 L0,10 z"/></marker>
+    <radialGradient id="glow1" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(240 20) scale(520 300)">
+      <stop offset="0" class="g1"/><stop offset="1" class="g1-end"/>
+    </radialGradient>
+    <radialGradient id="glow2" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(820 304) scale(480 280)">
+      <stop offset="0" class="g2"/><stop offset="1" class="g2-end"/>
+    </radialGradient>
+    <symbol id="i-monitor" viewBox="0 0 24 24"><rect width="20" height="14" x="2" y="3" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></symbol>
+    <symbol id="i-database" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></symbol>
+  </defs>
+
+  <rect class="bg" width="920" height="314" rx="18"/>
+  <rect fill="url(#glow1)" width="920" height="314" rx="18"/>
+  <rect fill="url(#glow2)" width="920" height="314" rx="18"/>
+
+  <!-- consumers -->
+  <rect class="card" x="28" y="26" width="200" height="262" rx="16"/>
+  <rect class="tile" x="46" y="44" width="36" height="36" rx="10"/>
+  <use href="#i-monitor" class="ico" x="54" y="52" width="20" height="20"/>
+  <text class="h" x="94" y="59">Consumers</text>
+  <text class="d" x="94" y="76">virtual and physical</text>
+  <line class="divider" x1="46" y1="94" x2="210" y2="94"/>
+  <rect class="row" x="46" y="108" width="164" height="32" rx="10"/>
+  <text class="mono" x="62" y="129">orders.eu</text>
+  <text class="sec" x="198" y="128" text-anchor="end">VIRTUAL</text>
+  <rect class="row" x="46" y="148" width="164" height="32" rx="10"/>
+  <text class="mono" x="62" y="169">orders.us</text>
+  <text class="sec" x="198" y="168" text-anchor="end">VIRTUAL</text>
+  <rect class="row" x="46" y="188" width="164" height="32" rx="10"/>
+  <text class="mono" x="62" y="209">orders</text>
+  <text class="sec" x="198" y="208" text-anchor="end">VIRTUAL</text>
+  <rect class="row" x="46" y="236" width="164" height="32" rx="10"/>
+  <text class="mono" x="62" y="257">payments</text>
+  <text class="sec" x="198" y="256" text-anchor="end">PHYSICAL</text>
+
+  <!-- gateway -->
+  <rect class="card" x="296" y="26" width="328" height="262" rx="16"/>
+  <rect class="brand" x="316" y="44" width="36" height="36" rx="10"/>
+  <text class="brand-t" x="334" y="69" text-anchor="middle" style="font-size: 19px">川</text>
+  <text class="h" x="364" y="59">kawa gateway</text>
+  <text class="d" x="364" y="76">maps virtual topics, filters on fetch</text>
+  <line class="divider" x1="316" y1="94" x2="604" y2="94"/>
+  <rect class="row" x="316" y="108" width="288" height="32" rx="10"/>
+  <text class="mono" x="332" y="129">orders.eu</text>
+  <rect class="pill" x="470" y="114" width="120" height="20" rx="6"/>
+  <circle class="dot" cx="481" cy="124" r="3"/><text class="pill-t" x="490" y="128">region = eu</text>
+  <rect class="row" x="316" y="148" width="288" height="32" rx="10"/>
+  <text class="mono" x="332" y="169">orders.us</text>
+  <rect class="pill" x="470" y="154" width="120" height="20" rx="6"/>
+  <circle class="dot" cx="481" cy="164" r="3"/><text class="pill-t" x="490" y="168">region = us</text>
+  <rect class="row" x="316" y="188" width="288" height="32" rx="10"/>
+  <text class="mono" x="332" y="209">orders</text>
+  <rect class="pill" x="470" y="194" width="120" height="20" rx="6"/>
+  <text class="pill-t" x="481" y="208">no filter</text>
+  <rect class="row" x="316" y="236" width="288" height="32" rx="10"/>
+  <text class="mono" x="332" y="257">payments</text>
+  <rect class="pill" x="470" y="242" width="120" height="20" rx="6"/>
+  <text class="pill-t" x="481" y="256">passed through</text>
+
+  <!-- cluster -->
+  <rect class="card" x="692" y="26" width="200" height="262" rx="16"/>
+  <rect class="tile" x="710" y="44" width="36" height="36" rx="10"/>
+  <use href="#i-database" class="ico" x="718" y="52" width="20" height="20"/>
+  <text class="h" x="758" y="59">Kafka cluster</text>
+  <text class="d" x="758" y="76">physical topics</text>
+  <line class="divider" x1="710" y1="94" x2="874" y2="94"/>
+  <rect class="row" x="710" y="144" width="164" height="40" rx="10"/>
+  <text class="mono" x="726" y="163">orders-v2</text>
+  <text class="d" x="726" y="177" style="font-size: 10.5px">hidden from clients</text>
+  <rect class="row" x="710" y="236" width="164" height="32" rx="10"/>
+  <text class="mono" x="726" y="257">payments</text>
+
+  <path class="flow-v" d="M214,124 H312" marker-end="url(#av)"/>
+  <path class="flow-v" d="M214,164 H312" marker-end="url(#av)"/>
+  <path class="flow-v" d="M214,204 H312" marker-end="url(#av)"/>
+  <path class="flow-v" d="M214,252 H312" marker-end="url(#av)"/>
+  <path class="flow" d="M608,124 C650,124 660,164 706,164" marker-end="url(#a)"/>
+  <path class="flow" d="M608,164 C650,164 660,164 706,164" marker-end="url(#a)"/>
+  <path class="flow" d="M608,204 C650,204 660,164 706,164" marker-end="url(#a)"/>
+  <path class="flow" d="M608,252 H706" marker-end="url(#a)"/>
+</svg>

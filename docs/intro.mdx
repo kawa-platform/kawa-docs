@@ -10,7 +10,7 @@ It speaks the Kafka wire protocol, so every existing Kafka client (a producer, a
 
 You might think of kawa as a proxy, and for some features that is exactly what it is: to rewrite topic names, check access or filter records, it sits between your clients and the cluster and handles their requests on the way through.
 
-But kawa is more than a mere proxy. It enhances the capabilities of your data streaming platform, whether or not a given feature works as a proxy. Virtual topics give clients stable names while the data lives elsewhere. Consume filters show each client only the records it should see. Governance rules refuse topics, partition counts and group names that break your conventions. Clients authenticate to kawa, and each request is checked against access rules before it reaches a broker. Some of this is proxying and some of it is not, but together it gives you things Kafka does not provide on its own.
+But kawa is more than a mere proxy. It amplifies the capabilities of your data streaming platform, whether or not a given feature works as a proxy. Virtual topics give clients stable names while the data lives elsewhere. Consume filters show each client only the records it should see. Governance rules refuse topics, partition counts and group names that break your conventions. Clients authenticate to kawa, and each request is checked against access rules before it reaches a broker. Some of this is proxying and some of it is not, but together it gives you things Kafka does not provide on its own.
 
 ![Kafka clients connect to the kawa gateway as if it were a broker; the gateway talks to the Kafka cluster behind it](./img/gateway.svg)
 
@@ -32,4 +32,4 @@ kawa is pre-1.0. The current release candidate line is 0.1.0-rc.2. Pin the image
 
 ## Where to go next
 
-Start with [Getting started](/docs/getting-started), which covers installing it with the Helm chart and trying kawa locally with kawa-demo. [Configuration](/docs/configuration) is the reference for the YAML file and the dynamic config. The [Modules](/docs/modules/virtual-topics) section explains virtual topics, authentication, access control, governance and plugins. The [Kubernetes operator](/docs/operator) page covers managing virtual topics from a cluster.
+Start with [Getting started](/docs/getting-started), which covers installing it with the Helm chart. [Configuration](/docs/configuration) is the reference for the YAML file and the dynamic config. The [Modules](/docs/modules/virtual-topics) section explains virtual topics, authentication, access control and governance. The [Kubernetes operator](/docs/operator) page covers managing virtual topics from a cluster.
