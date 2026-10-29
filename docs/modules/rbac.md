@@ -38,7 +38,7 @@ Create roles and groups in Studio, which also shows each client's effective acce
 Requires the [Kubernetes operator](/docs/operator). The gateway role is named after `metadata.name`.
 
 ```yaml title="Role orders-producer"
-apiVersion: kawa.kawa-platform.github.io/v1alpha1
+apiVersion: kawa-platform.github.io/v1alpha1
 kind: Role
 metadata:
   name: orders-producer
@@ -63,7 +63,7 @@ spec:
 Requires the [Kubernetes operator](/docs/operator). The gateway group is named after `metadata.name`.
 
 ```yaml title="Group producers"
-apiVersion: kawa.kawa-platform.github.io/v1alpha1
+apiVersion: kawa-platform.github.io/v1alpha1
 kind: Group
 metadata:
   name: producers

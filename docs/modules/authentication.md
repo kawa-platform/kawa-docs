@@ -32,7 +32,7 @@ SASL clients are created in Studio or as `Client` operator resources and apply l
 Requires the [Kubernetes operator](/docs/operator). The client's username is `metadata.name`; the password comes from a Secret and is written to the gateway again whenever the Secret changes.
 
 ```yaml title="Client alice"
-apiVersion: kawa.kawa-platform.github.io/v1alpha1
+apiVersion: kawa-platform.github.io/v1alpha1
 kind: Client
 metadata:
   name: alice

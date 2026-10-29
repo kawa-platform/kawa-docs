@@ -67,7 +67,7 @@ The chart installs the CRDs and keeps them, and every resource, on uninstall. It
 ```bash
 kubectl create namespace team-a
 kubectl apply -f - <<'EOF'
-apiVersion: kawa.kawa-platform.github.io/v1alpha1
+apiVersion: kawa-platform.github.io/v1alpha1
 kind: VirtualTopic
 metadata:
   name: orders-eu
@@ -81,7 +81,7 @@ kubectl -n team-a get virtualtopic orders-eu \
 
 ## Resources
 
-All kinds are namespaced, in `kawa.kawa-platform.github.io/v1alpha1`. Each one is described on its module page:
+All kinds are namespaced, in `kawa-platform.github.io/v1alpha1`. Each one is described on its module page:
 
 | Kind           | Manages                         | Fields                                                        |
 |----------------|---------------------------------|---------------------------------------------------------------|

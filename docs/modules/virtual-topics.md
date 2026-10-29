@@ -54,7 +54,7 @@ CEL bindings:
 Examples as [`VirtualTopic` operator resources](#virtualtopic-operator-resource):
 
 ```yaml title="VirtualTopic orders.us: header filter"
-apiVersion: kawa.kawa-platform.github.io/v1alpha1
+apiVersion: kawa-platform.github.io/v1alpha1
 kind: VirtualTopic
 metadata:
   name: orders.us
@@ -67,7 +67,7 @@ spec:
 ```
 
 ```yaml title="VirtualTopic orders.eu: CEL filter"
-apiVersion: kawa.kawa-platform.github.io/v1alpha1
+apiVersion: kawa-platform.github.io/v1alpha1
 kind: VirtualTopic
 metadata:
   name: orders.eu
@@ -98,7 +98,7 @@ Create virtual topics in Studio, or declare them as `VirtualTopic` resources wit
 Requires the [Kubernetes operator](/docs/operator).
 
 ```yaml
-apiVersion: kawa.kawa-platform.github.io/v1alpha1
+apiVersion: kawa-platform.github.io/v1alpha1
 kind: VirtualTopic
 metadata:
   name: orders-eu
