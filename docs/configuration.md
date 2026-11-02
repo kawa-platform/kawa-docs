@@ -22,6 +22,7 @@ There are two kinds of gateway configuration:
 | `governance`                                                  | Dynamic | `/governance`, Studio                     |
 | `adminUsers`                                                  | Dynamic | `/admin/users`, Studio                    |
 | `modules`                                                     | Dynamic | `/modules`, Studio                        |
+| `oauthClients`                                                | Dynamic | Studio, the operator                      |
 | `virtualClusters`                                             | Dynamic | `/virtual-clusters`                       |
 
 ## Chart values
@@ -66,6 +67,7 @@ gateway:
         password: ${KAFKA_PASSWORD}
     admin:
       enabled: true
+      publicUrl: https://kawa-admin.example.com
       cors:
         allowedOrigins: [https://studio.example.com]
       auth:
@@ -165,15 +167,18 @@ The top-level `advertised` applies to the first listener; further listeners use 
 
 The admin HTTP server: admin API, Studio backend and `/docs`.
 
-| Field     | Type   | Default      | Description                                      |
-|-----------|--------|--------------|--------------------------------------------------|
-| `enabled` | bool   | `false`      | Start the admin server.                          |
-| `host`    | string | `0.0.0.0`    | Bind address.                                    |
-| `port`    | int    | `8080`       | Bind port. `0` is ephemeral.                     |
-| `cors`    | object | none         | Omit to disable CORS.                            |
-| `auth`    | object | `type: none` | See below.                                       |
+| Field       | Type   | Default                | Description                                                                                    |
+|-------------|--------|------------------------|------------------------------------------------------------------------------------------------|
+| `enabled`   | bool   | `false`                | Start the admin server.                                                                        |
+| `host`      | string | `0.0.0.0`              | Bind address.                                                                                  |
+| `port`      | int    | `8080`                 | Bind port. `0` is ephemeral.                                                                   |
+| `publicUrl` | string | `http://<host>:<port>` | The absolute `http(s)` URL clients reach the admin API at, e.g. through an ingress. See below. |
+| `cors`      | object | none                   | Omit to disable CORS.                                                                          |
+| `auth`      | object | `type: none`           | See below.                                                                                     |
 
 With `type: none`, the API is open and every request runs as principal `admin`. Use `oauth` anywhere it is reachable by others.
+
+`publicUrl` is the URL kawa tells clients to use: the `oauth` issuer and the addresses MCP clients discover the login with are built from it, and the [MCP server](/docs/modules/mcp) is at `<publicUrl>/mcp`. It defaults to the bind address, which is only right when clients reach kawa there. With `type: oauth` and a wildcard bind address such as the default `0.0.0.0`, set it: startup fails otherwise.
 
 #### cors
 
@@ -201,7 +206,7 @@ Read from the file only, never written to the config topic.
 |------------------|----------|-----------|-----------------------------------------------------------------------------------------------|
 | `loginUrl`       | string   | required  | UI login page `/oauth/authorize` redirects to. For Studio: `<origin>/admin/login`.            |
 | `redirectUris`   | list     | required  | Allowed post-login redirects. For Studio: `<origin>/admin/auth/callback`.                     |
-| `issuer`         | string   | `kawa`    | `iss` and `aud` of issued tokens.                                                             |
+| `issuer`         | string   | `admin.publicUrl` | `iss` of issued tokens, and `aud` of tokens for the whole admin API.                  |
 | `tokenTtl`       | duration | `PT15M`   | Access token lifetime.                                                                        |
 | `sessionTtl`     | duration | `PT8H`    | Login lifetime. Refreshing does not extend it.                                                |
 | `signingKey`     | string   | generated | PEM EC P-256 key. Unset, a temporary key is generated and tokens die on restart; set it for anything beyond one replica. |
@@ -217,4 +222,4 @@ Each record is a full JSON snapshot of the dynamic sections; the latest wins. It
 
 ## Modules
 
-`virtual-topics`, `rbac` and `governance`, all on by default, toggled in Studio. Disabling `rbac` fails open; see [Access control](/docs/modules/rbac#switching-access-control-off).
+`virtual-topics`, `rbac`, `governance` and `mcp` (the [MCP server](/docs/modules/mcp)), all on by default, toggled in Studio. Disabling `rbac` fails open; see [Access control](/docs/modules/rbac#switching-access-control-off).

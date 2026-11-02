@@ -5,7 +5,7 @@ sidebar_position: 4
 
 # Kubernetes operator
 
-The operator manages gateway configuration as Kubernetes resources: `VirtualTopic`, `Client`, `Role` and `Group`. It applies them through the gateway's admin API, keeps the gateway in sync and reverts changes made elsewhere.
+The operator manages gateway configuration as Kubernetes resources: `VirtualTopic`, `Client`, `Role`, `Group` and `OAuthClient`. It applies them through the gateway's admin API, keeps the gateway in sync and reverts changes made elsewhere.
 
 ## Install
 
@@ -89,6 +89,7 @@ All kinds are namespaced, in `kawa-platform.github.io/v1alpha1`. Each one is des
 | `Client`       | A SASL client and its password  | [Authentication](/docs/modules/authentication)                |
 | `Role`         | A set of ACLs                   | [Access control](/docs/modules/rbac)                          |
 | `Group`        | Clients that share roles        | [Access control](/docs/modules/rbac)                          |
+| `OAuthClient`  | An OAuth client, e.g. for MCP   | [MCP server](/docs/modules/mcp)                               |
 
 The gateway name is `metadata.name` (a `VirtualTopic` can override it). Every kind has `deletionPolicy`: `Delete` (default) removes the object from the gateway, `Retain` leaves it.
 

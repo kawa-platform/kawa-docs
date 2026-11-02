@@ -35,6 +35,7 @@ gateway:
         bootstrapServers: [ kafka.kafka.svc:9092 ]
     admin:
       enabled: true
+      publicUrl: http://localhost:8080
       auth:
         type: oauth
         bootstrapUser:

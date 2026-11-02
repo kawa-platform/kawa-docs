@@ -66,6 +66,9 @@ With `oauth`, kawa is its own OAuth 2.0 server:
 - **The first admin user** is `bootstrapUser`, created on the first start without admin users. After that it is an ordinary user, and the password in the values file is ignored.
 - **Sessions** last `sessionTtl` (8 hours) with access tokens of `tokenTtl` (15 minutes). There is no server-side session store.
 - **Signing key**: set `signingKey` to an EC P-256 key shared by all replicas (`openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256`). Without it, tokens die on restart and only work on the replica that issued them. The Helm chart generates one.
+- **Issuer**: tokens name [`admin.publicUrl`](/docs/configuration#admin) as their issuer unless `issuer` is set. Set `publicUrl` to the URL clients reach the admin API at; with a wildcard bind address such as `0.0.0.0`, startup fails without it. When upgrading from a version whose issuer defaulted to `kawa`, tokens issued before the upgrade stop working and users log in once more.
+- **Discovery**: a request without a valid token gets a `401` that points at metadata naming kawa's login server, so OAuth clients such as MCP clients find out how to log in on their own.
+- **Other OAuth clients**: besides Studio, users can log in through OAuth clients registered on kawa, such as MCP clients. See [MCP server](/docs/modules/mcp#oauth-clients).
 
 ### Operator client
 
