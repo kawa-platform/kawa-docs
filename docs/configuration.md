@@ -178,7 +178,17 @@ The admin HTTP server: admin API, Studio backend and `/docs`.
 
 With `type: none`, the API is open and every request runs as principal `admin`. Use `oauth` anywhere it is reachable by others.
 
-`publicUrl` is the URL kawa tells clients to use: the `oauth` issuer and the addresses MCP clients discover the login with are built from it, and the [MCP server](/docs/modules/mcp) is at `<publicUrl>/mcp`. It defaults to the bind address, which is only right when clients reach kawa there. With `type: oauth` and a wildcard bind address such as the default `0.0.0.0`, set it: startup fails otherwise. Serve the admin API at the root of its host: OAuth clients look for `/.well-known/...` right after the host, so a `publicUrl` with a path such as `https://example.com/kawa` is refused.
+`publicUrl` is the URL clients reach the admin API at. kawa uses it in the URLs it hands out:
+
+- **OAuth**: the token issuer and the login addresses MCP clients discover.
+- **MCP**: the URL agents connect to, `<publicUrl>/mcp`.
+
+Unset, it defaults to the bind address, `http://<host>:<port>`. Set it whenever clients reach kawa some other way, such as through an ingress. Unset is not enough when:
+
+- **`type: oauth` with a wildcard bind address**, such as the default `0.0.0.0` or `::`: startup fails. A wildcard address only says which interfaces kawa listens on; no client can reach kawa at it. The token issuer and the login addresses would name it, so OAuth logins could not work.
+- **[MCP](/docs/modules/mcp)**: it cannot be switched on. The bind address is never used as the URL agents connect to.
+
+Serve the admin API at the root of its host. OAuth clients look for `/.well-known/...` right after the host, so a `publicUrl` with a path, such as `https://example.com/kawa`, is refused.
 
 #### cors
 
@@ -221,4 +231,4 @@ Each record is a full JSON snapshot of the dynamic sections; the latest wins. It
 
 ## Modules
 
-`virtual-topics`, `rbac`, `governance` and `mcp` (the [MCP server](/docs/modules/mcp)), all on by default, toggled in Studio. Disabling `rbac` fails open; see [Access control](/docs/modules/rbac#switching-access-control-off).
+Toggled in Studio; a module that was never toggled has its default. `virtual-topics`, `rbac`, `governance` and `mcp-cimd` are on by default. `mcp`, the [MCP server](/docs/modules/mcp), is off by default and can only be switched on while [`admin.publicUrl`](#admin) is set. Disabling `rbac` fails open; see [Access control](/docs/modules/rbac#switching-access-control-off).

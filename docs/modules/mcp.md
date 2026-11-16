@@ -13,7 +13,12 @@ sidebar_position: 6
 
 ## Switching it on and off
 
-The `mcp` module is on by default and can be switched off in Studio; the change applies live. While it is off, `/mcp` answers `404`, as if it did not exist.
+The `mcp` module is off by default, so no agent reaches kawa until it is switched on. While it is off, `/mcp` answers `404`, as if it did not exist. Switch it on and off with the MCP card on Studio's Modules page; the change applies live, without a restart.
+
+- **Requires `admin.publicUrl`**: MCP can only be switched on while [`admin.publicUrl`](/docs/configuration#admin) is set, since it is the URL agents connect to; the bind-address default does not count. Without it, Studio shows the gateway's refusal, `set admin.publicUrl, the URL agents connect to`, and MCP stays off.
+- **Connect URL**: while MCP is on, the card shows the URL to configure in an agent's MCP client, `<admin.publicUrl>/mcp`.
+- **Unavailable**: MCP that is on while `admin.publicUrl` is missing, for example after a restart without it, is reported as unavailable with that reason and without a connect URL. `/mcp` keeps serving in that state.
+- **Switching off**: always allowed, also while MCP is unavailable.
 
 ## Authentication
 
@@ -33,7 +38,7 @@ The `mcp` module is on by default and can be switched off in Studio; the change 
 
 - **Only MCP**: tokens issued to an OAuth client with audience `mcp` work on `/mcp` and nowhere else on the admin API. An agent cannot use them to change kawa through the API Studio uses.
 - **As the user**: tool calls run as the admin user who logged in. Disabling or deleting that user ends the agent's access at once.
-- **Traced**: every tool call leaves a log line with the tool, the user and the OAuth client, e.g. `MCP tool list_topics called by alice@example.com via kawa-mcp-claude: ok`. Arguments and results are not logged.
+- **Traced**: every tool call leaves one log line at `INFO` with the tool, the user, the OAuth client and the outcome, `ok`, `error` or `failed`, e.g. `MCP tool list_topics called by alice@example.com via kawa-mcp-claude: ok`. Arguments and results are never logged.
 
 ## OAuth clients
 
