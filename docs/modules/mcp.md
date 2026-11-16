@@ -9,7 +9,7 @@ sidebar_position: 6
 
 | Tool          | Answers with                                                                                                      |
 |---------------|-------------------------------------------------------------------------------------------------------------------|
-| `list_topics` | The virtual topics, each with its physical topic, partitions, replication factor, filter and value format (`json`, `avro` or `raw`), and the physical topics on the cluster with partitions and replication factor. |
+| `list_topics` | The virtual topics, each with its physical topic, partitions, replication factor, filter and value format (`json`, `avro`, `xml` or `raw`), and the physical topics on the cluster with partitions and replication factor. |
 
 ## Switching it on and off
 

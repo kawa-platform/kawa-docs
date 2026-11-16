@@ -7,7 +7,7 @@ sidebar_position: 1
 
 **A virtual topic is to a Kafka topic what a SQL view is to a table.** It is a topic name that exists only on the gateway, backed by a physical topic and optionally filtered. Clients produce, consume, commit offsets and join groups on it like on any topic. Nothing is copied: partitions, offsets, retention and storage are the physical topic's.
 
-![Consumers use the virtual topics orders.eu, orders.us and orders, backed by the hidden physical topic orders-v2, next to the ordinary physical topic payments, which passes through unchanged](../img/virtual-topics.svg)
+![Consumers use the virtual topics orders.eu, orders.us and orders, backed by the hidden physical topic orders-v2, next to the ordinary physical topic payments, which passes through unchanged](../../img/virtual-topics.svg)
 
 That makes the topic name an interface you control, independent of where the data lives:
 
@@ -24,7 +24,8 @@ That makes the topic name an interface you control, independent of where the dat
 | `topic`               | required | Physical topic. Need not exist yet.                                                 |
 | `exposePhysicalTopic` | `false`  | Also list the physical topic in Metadata.                                           |
 | `filter`              | none     | [Consume filter](#filters).                                                         |
-| `valueFormat`         | none     | [Value format](#value-formats), so `cel` filters see decoded values.                |
+| `valueFormat`         | none     | [Value format](#value-formats), so `cel` filters see decoded values. Required with `transformations`. |
+| `transformations`     | none     | [Transformation](/docs/modules/virtual-topics/transformations) steps, applied in order to each value on fetch. |
 
 A name that is both virtual and physical resolves to the virtual topic.
 
@@ -86,8 +87,11 @@ Filtering drops records from the fetched batches without renumbering: surviving 
 |--------|-----------------------------------------------------------------------------------------------------------|
 | `json` | A JSON document.                                                                                          |
 | `avro` | Schema registry wire format. Needs the cluster's [`schemaRegistry`](/docs/configuration#schema-registry). |
+| `xml`  | An XML document. Elements become fields, attributes `@name` fields; every scalar is a string.            |
 
-`onDecodeError`: `skip` (default) drops the record, `include` delivers it, `fail` fails the fetch.
+`onDecodeError` applies to a record whose value does not decode, or that the [transformations](/docs/modules/virtual-topics/transformations#errors) cannot transform: `skip` (default) drops it, leaving an offset gap, `include` delivers it as stored (unfiltered, untransformed), `fail` fails the fetch.
+
+As the output of transformations, `avro` takes `subject` and `version` and `xml` takes `root`; see [Formats](/docs/modules/virtual-topics/transformations#formats).
 
 ## Managing
 
@@ -116,7 +120,7 @@ spec:
 |-----------------------|-------------------------------------------------------------------------------------|
 | `physicalTopic`       | Required. `topic` above.                                                            |
 | `virtualTopic`        | `name` above. Defaults to `metadata.name`; set it for names Kubernetes rejects. Immutable. |
-| `exposePhysicalTopic`, `filter`, `valueFormat` | As above.                                                  |
+| `exposePhysicalTopic`, `filter`, `valueFormat`, `transformations` | As above.                               |
 | `deletionPolicy`      | `Delete` (default) removes the virtual topic on deletion, `Retain` keeps it.        |
 
 Ownership, adoption and status are described in [Kubernetes operator](/docs/operator#ownership).

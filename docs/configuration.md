@@ -135,7 +135,7 @@ The upstream Kafka cluster, keyed by name. Only the first entry is used. Require
 |--------------------|-------------|----------|-----------------------------------------------------------------|
 | `bootstrapServers` | string list | required | `host:port`. Only the first address is used.                    |
 | `tls`              | object      | none     | `truststore` (required), `keystore` for mTLS, `verifyHostname` (default `true`). |
-| `schemaRegistry`   | object      | none     | For virtual topics with `valueFormat: avro`.                    |
+| `schemaRegistry`   | object      | none     | For virtual topics that decode or encode Avro. Without it, such a virtual topic is refused. |
 
 The broker protocol follows from what is set: neither `tls` nor `auth.brokerAuth` is `PLAINTEXT`, `brokerAuth` only is `SASL_PLAINTEXT`, `tls` only is `SSL`, both is `SASL_SSL`.
 
@@ -172,13 +172,13 @@ The admin HTTP server: admin API, Studio backend and `/docs`.
 | `enabled`   | bool   | `false`                | Start the admin server.                                                                        |
 | `host`      | string | `0.0.0.0`              | Bind address.                                                                                  |
 | `port`      | int    | `8080`                 | Bind port. `0` is ephemeral.                                                                   |
-| `publicUrl` | string | `http://<host>:<port>` | The absolute `http(s)` URL clients reach the admin API at, e.g. through an ingress. See below. |
+| `publicUrl` | string | `http://<host>:<port>` | The absolute `http(s)` URL clients reach the admin API at, e.g. through an ingress: scheme, host and optional port, no path. See below. |
 | `cors`      | object | none                   | Omit to disable CORS.                                                                          |
 | `auth`      | object | `type: none`           | See below.                                                                                     |
 
 With `type: none`, the API is open and every request runs as principal `admin`. Use `oauth` anywhere it is reachable by others.
 
-`publicUrl` is the URL kawa tells clients to use: the `oauth` issuer and the addresses MCP clients discover the login with are built from it, and the [MCP server](/docs/modules/mcp) is at `<publicUrl>/mcp`. It defaults to the bind address, which is only right when clients reach kawa there. With `type: oauth` and a wildcard bind address such as the default `0.0.0.0`, set it: startup fails otherwise.
+`publicUrl` is the URL kawa tells clients to use: the `oauth` issuer and the addresses MCP clients discover the login with are built from it, and the [MCP server](/docs/modules/mcp) is at `<publicUrl>/mcp`. It defaults to the bind address, which is only right when clients reach kawa there. With `type: oauth` and a wildcard bind address such as the default `0.0.0.0`, set it: startup fails otherwise. Serve the admin API at the root of its host: OAuth clients look for `/.well-known/...` right after the host, so a `publicUrl` with a path such as `https://example.com/kawa` is refused.
 
 #### cors
 
@@ -206,7 +206,6 @@ Read from the file only, never written to the config topic.
 |------------------|----------|-----------|-----------------------------------------------------------------------------------------------|
 | `loginUrl`       | string   | required  | UI login page `/oauth/authorize` redirects to. For Studio: `<origin>/admin/login`.            |
 | `redirectUris`   | list     | required  | Allowed post-login redirects. For Studio: `<origin>/admin/auth/callback`.                     |
-| `issuer`         | string   | `admin.publicUrl` | `iss` of issued tokens, and `aud` of tokens for the whole admin API.                  |
 | `tokenTtl`       | duration | `PT15M`   | Access token lifetime.                                                                        |
 | `sessionTtl`     | duration | `PT8H`    | Login lifetime. Refreshing does not extend it.                                                |
 | `signingKey`     | string   | generated | PEM EC P-256 key. Unset, a temporary key is generated and tokens die on restart; set it for anything beyond one replica. |
