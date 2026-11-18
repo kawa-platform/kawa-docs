@@ -10,6 +10,16 @@ sidebar_position: 6
 | Tool          | Answers with                                                                                                      |
 |---------------|-------------------------------------------------------------------------------------------------------------------|
 | `list_topics` | The virtual topics, each with its physical topic, partitions, replication factor, filter and value format (`json`, `avro`, `xml` or `raw`), and the physical topics on the cluster with partitions and replication factor. |
+| `list_consumer_groups` | Every group on the cluster with its id, type, state and protocol type, whether lag applies, and where it does the total lag, the number of partitions without a commit and whether the lag is an upper bound. |
+| `describe_consumer_group` | One group by `groupId`: its members with the partitions assigned to each, and per physical topic its virtual topics and, per partition, the committed offset, end offset and lag. |
+
+### Consumer group lag
+
+- **Which groups**: lag applies to `CONSUMER` groups ([KIP-848](https://cwiki.apache.org/confluence/display/KAFKA/KIP-848%3A+The+Next+Generation+of+the+Consumer+Rebalance+Protocol)) and `CLASSIC` groups of protocol type `consumer`, or of none for a group that only commits offsets. Share, streams, Connect and other groups are listed with `lagApplicable: false` and no lag fields.
+- **Lag**: end offset (read committed) minus committed offset, on the physical topic. A partition without a commit is counted in `uncommittedPartitions`, not as zero lag.
+- **Upper bound**: when a virtual topic on the physical topic filters, records the filter drops still count as lag, and `lagIsUpperBound` is `true`.
+- **Physical, not virtual**: the tools do not say which virtual topic a group read. See [Shared physical topics](/docs/modules/virtual-topics#shared-physical-topics).
+- **Unknown group**: `describe_consumer_group` answers with a tool error naming the group.
 
 ## Switching it on and off
 

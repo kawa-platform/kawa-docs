@@ -5,7 +5,7 @@ sidebar_position: 1
 
 # Virtual topics
 
-**A virtual topic is to a Kafka topic what a SQL view is to a table.** It is a topic name that exists only on the gateway, backed by a physical topic and optionally filtered. Clients produce, consume, commit offsets and join groups on it like on any topic. Nothing is copied: partitions, offsets, retention and storage are the physical topic's.
+**A virtual topic is to a Kafka topic what a SQL view is to a table.** It is a topic name that exists only on the gateway, backed by a physical topic and optionally filtered. Clients produce, consume, commit offsets and join groups on it like on any topic, within the [limits of shared physical topics](#shared-physical-topics). Nothing is copied: partitions, offsets, retention and storage are the physical topic's.
 
 ![Consumers use the virtual topics orders.eu, orders.us and orders, backed by the hidden physical topic orders-v2, next to the ordinary physical topic payments, which passes through unchanged](../../img/virtual-topics.svg)
 
@@ -28,6 +28,15 @@ That makes the topic name an interface you control, independent of where the dat
 | `transformations`     | none     | [Transformation](/docs/modules/virtual-topics/transformations) steps, applied in order to each value on fetch. |
 
 A name that is both virtual and physical resolves to the virtual topic.
+
+## Shared physical topics
+
+Several virtual topics can be backed by the same physical topic, such as `orders.eu` and `orders.us` on `orders-v2`. The broker keeps records, fetch positions and committed offsets per physical partition, so two of those names in one request or one consumer group would collide:
+
+- **One name per request**: a produce, fetch, list-offsets, offset-commit or offset-fetch request that names two virtual topics backed by the same physical topic is refused with `INVALID_REQUEST` and not sent to the broker. So is a group join whose subscription does.
+- **One name per client**: to write to several of them, use one producer per virtual topic. To read several, use one consumer group, with one consumer, per virtual topic.
+
+The gateway cannot catch two members of one group that each subscribe to a different virtual topic on the same physical topic, or a group that switches from one such virtual topic to another and resumes from the old one's committed offsets. The consumer group protocol of [KIP-848](https://cwiki.apache.org/confluence/display/KAFKA/KIP-848%3A+The+Next+Generation+of+the+Consumer+Rebalance+Protocol) (`group.protocol=consumer`) is not supported on virtual topics yet.
 
 ## Filters
 
