@@ -98,7 +98,7 @@ Filtering drops records from the fetched batches without renumbering: surviving 
 | `avro` | Schema registry wire format. Needs the cluster's [`schemaRegistry`](/docs/configuration#schema-registry). |
 | `xml`  | An XML document. Elements become fields, attributes `@name` fields; every scalar is a string.            |
 
-`onDecodeError` applies to a record whose value does not decode, or that the [transformations](/docs/modules/virtual-topics/transformations#errors) cannot transform: `skip` (default) drops it, leaving an offset gap, `include` delivers it as stored (unfiltered, untransformed), `fail` fails the fetch. An unreachable schema registry is not a decode error; see [Errors](/docs/modules/virtual-topics/transformations#errors).
+`onDecodeError` applies to a record whose value does not decode, or that the [transformations](/docs/modules/virtual-topics/transformations#errors) cannot transform: `skip` (default) drops it, leaving an offset gap, `include` delivers it as stored (unfiltered, untransformed), `fail` delivers the records before it, then fails its partition with `CORRUPT_MESSAGE`, which a Java consumer throws from `poll()`. An unreachable schema registry is not a decode error. See [Errors](/docs/modules/virtual-topics/transformations#errors).
 
 As the output of transformations, `avro` takes `subject` and `version` and `xml` takes `root`; see [Formats](/docs/modules/virtual-topics/transformations#formats).
 

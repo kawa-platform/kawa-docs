@@ -145,11 +145,30 @@ A record whose value does not decode, fails a step, or cannot be encoded follows
 |--------------------|--------------------------------------------------------------------------------|
 | `skip` (default)   | Nothing. The record is dropped, leaving an offset gap.                         |
 | `include`          | The value as stored, untransformed, so not in the format the consumer expects. |
-| `fail`             | No records. The fetch fails.                                                   |
+| `fail`             | The records before it, then `CORRUPT_MESSAGE` on its partition. See [below](#what-the-application-sees-with-fail). |
 
-Every record is handled on its own, so one response can mix transformed and skipped records, and a topic holding values in several formats only loses the ones that do not decode.
+Every record is handled on its own, so one response can mix transformed and skipped records, and a topic holding values in several formats only loses the ones that do not decode. Use `fail` when such a record must stop consumption instead of being lost silently.
 
-An unreachable schema registry (connection error, timeout or `5xx`) is not a record error and ignores `onDecodeError`: the affected partition returns `UNKNOWN_SERVER_ERROR` with no records, so the consumer fetches the same offset again and nothing is lost. Other partitions are unaffected. A schema the registry does not have (`404`) or an invalid schema is a record error. Schemas by id and by explicit subject version are cached until restart, a subject's `latest` for 5 minutes; when refreshing `latest` fails, the last cached schema is used.
+Every failure stalls only its own partition at the gateway. Other partitions and topics keep being delivered on every fetch, and only the stalled partition's lag grows. The partition stays assigned to the same consumer: no rebalance moves it, since the consumer keeps polling.
+
+| Case                        | The partition answers              | A Java consumer                                                                  |
+|-----------------------------|------------------------------------|----------------------------------------------------------------------------------|
+| Bad record with `fail`      | `CORRUPT_MESSAGE`, no records      | Throws a `KafkaException` from `poll()` until the application seeks past the record. |
+| Schema registry unreachable | `UNKNOWN_SERVER_ERROR`, no records | Logs a warning and fetches the same offset again; resumes once the registry is back. |
+| Unexpected gateway error    | `UNKNOWN_SERVER_ERROR`, no records | Logs a warning and fetches the same offset again.                                |
+
+- **Schema registry unreachable**: a connection error, timeout or `5xx`. A schema the registry does not have (`404`) or an invalid schema is a bad record. Schemas by id and by explicit subject version are cached until restart, a subject's `latest` for 5 minutes; when refreshing `latest` fails, the last cached schema is used.
+- **Unexpected gateway error**: a failure while filtering or transforming that is not caused by the record.
+
+`onDecodeError` applies to bad records only, never to the other two cases.
+
+### What the application sees with `fail`
+
+When it reaches the record, the consuming application gets an exception: `Encountered corrupt message when fetching offset <n> for topic-partition <tp>`. What happens next depends on whether its consuming code handles that exception:
+
+- **Not handled** (the common case): the application stops consuming all of its partitions, not only the stalled one.
+- **Handled, consuming on**: the other partitions keep flowing, and the error comes back for the stalled partition on every poll, until the application skips the record by seeking to offset `n + 1` on that partition.
+- **Kafka Streams**: treats it as fatal and stops the stream thread, so all of its partitions stop.
 
 ## Offsets and delivery
 
