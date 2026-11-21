@@ -149,6 +149,8 @@ A record whose value does not decode, fails a step, or cannot be encoded follows
 
 Every record is handled on its own, so one response can mix transformed and skipped records, and a topic holding values in several formats only loses the ones that do not decode.
 
+An unreachable schema registry (connection error, timeout or `5xx`) is not a record error and ignores `onDecodeError`: the affected partition returns `UNKNOWN_SERVER_ERROR` with no records, so the consumer fetches the same offset again and nothing is lost. Other partitions are unaffected. A schema the registry does not have (`404`) or an invalid schema is a record error. Schemas by id and by explicit subject version are cached until restart, a subject's `latest` for 5 minutes; when refreshing `latest` fails, the last cached schema is used.
+
 ## Offsets and delivery
 
 Records keep their offsets, timestamps, keys and headers. Batches keep their producer and transaction metadata, compression and last offset, so consumers move past a batch whose records were all skipped. `read_committed` consumers still drop aborted records, and transaction markers pass unchanged. Commits, seeks and rebalances work as on any virtual topic.
