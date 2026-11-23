@@ -22,7 +22,7 @@ There are two kinds of gateway configuration:
 | `governance`                                                  | Dynamic | `/governance`, Studio                     |
 | `adminUsers`                                                  | Dynamic | `/admin/users`, Studio                    |
 | `modules`                                                     | Dynamic | `/modules`, Studio                        |
-| `oauthClients`                                                | Dynamic | Studio, the operator                      |
+| `oauthClients`                                                | Dynamic | Studio                                    |
 | `virtualClusters`                                             | Dynamic | `/virtual-clusters`                       |
 
 ## Chart values
@@ -220,6 +220,7 @@ Read from the file only, never written to the config topic.
 | `sessionTtl`     | duration | `PT8H`    | Login lifetime. Refreshing does not extend it.                                                |
 | `signingKey`     | string   | generated | PEM EC P-256 key. Unset, a temporary key is generated and tokens die on restart; set it for anything beyond one replica. |
 | `operatorSecret` | string   | none      | Enables the `kawa-operator` client (client credentials). See [Authentication](/docs/modules/authentication#operator-client). |
+| `clientIdMetadataDocuments` | list | `[]`  | `https` URLs of the [client ID metadata documents](/docs/modules/mcp#client-id-metadata-documents) allowed to sign in. Empty: any. |
 
 See [Authentication](/docs/modules/authentication#studio-and-the-admin-api) for admin users and sign-in.
 
