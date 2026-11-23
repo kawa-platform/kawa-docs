@@ -90,7 +90,7 @@ The cluster needs a [`schemaRegistry`](/docs/configuration#schema-registry) to d
 | Field   | Default  | Description                                                              |
 |---------|----------|--------------------------------------------------------------------------|
 | `field` | required | Dotted path of the field. Missing parent objects are created.            |
-| `value` | `null`   | Any JSON value: string, number, boolean, `null`, object or list.         |
+| `value` | required | Any JSON value: string, number, boolean, `null`, object or list.         |
 
 A scalar where the path needs an object fails the record.
 
@@ -197,13 +197,15 @@ lz4 compression adds less than 5%. A `cel` filter together with transformations 
 Transformations are part of the virtual topic: set them in Studio or in the [`VirtualTopic` operator resource](#virtualtopic-operator-resource). kawa refuses a virtual topic before anything is written when:
 
 - it has steps but no `valueFormat`;
+- a step has a field its type does not take, also inside a `convert` format (`{"type": "json", "foo": 1}`);
+- a `defaultField` step has no `value`; an explicit `null` is allowed;
 - `convert` is not the last step;
 - the output format is Avro without `subject`, or XML without `root`;
 - Avro, as the `valueFormat` or a `convert` format, is used on a cluster without a `schemaRegistry`;
 - a path is blank or has an empty segment (`a..b`, `.a`, `a.`);
 - a `cel` expression does not compile.
 
-An error about one step starts with `transformations[N] (type)`, N being the step's 0-based index: `transformations[2] (cel): Invalid CEL expression ...`.
+An error about one step starts with `transformations[N] (type)`, N being the step's 0-based index: `transformations[1] (defaultField): unknown property 'default'`.
 
 ### `VirtualTopic` operator resource
 
@@ -234,10 +236,10 @@ spec:
 
 The API server rejects a resource on admission when:
 
-- **Step fields**: a step sets a field of another step type, or misses its own: `fields` (at least one) for `dropFields`, `from` and `to` for `renameField`, `field` for `defaultField`, `expression` for `cel`, `format` for `convert`. `value` is optional and means `null`.
+- **Step fields**: a step sets a field of another step type, or misses its own: `fields` (at least one) for `dropFields`, `from` and `to` for `renameField`, `field` for `defaultField`, `expression` for `cel`, `format` for `convert`.
 - **Format fields**: `subject` or `version` on a format other than `avro`, `version` without `subject` or below 1, or `root` on a format other than `xml`.
 
-The rules that span steps or need the cluster come back from the gateway: steps without a `valueFormat`, `convert` not last, Avro output without `subject`, XML output without `root`, and Avro on a cluster without a `schemaRegistry`. The resource then reports `Ready=False` with reason `InvalidSpec` and the gateway's message, `transformations[N] (type)` included for a step.
+The rules that span steps or need the cluster come back from the gateway: steps without a `valueFormat`, a `defaultField` without `value`, `convert` not last, Avro output without `subject`, XML output without `root`, and Avro on a cluster without a `schemaRegistry`. The resource then reports `Ready=False` with reason `InvalidSpec` and the gateway's message, `transformations[N] (type)` included for a step.
 
 The operator keeps the steps in sync like the rest of the spec:
 
