@@ -25,6 +25,7 @@ That makes the topic name an interface you control, independent of where the dat
 | `exposePhysicalTopic` | `false`  | Also list the physical topic in Metadata.                                           |
 | `filter`              | none     | [Consume filter](#filters).                                                         |
 | `valueFormat`         | none     | [Value format](#value-formats), so `cel` filters see decoded values.                |
+| `transformations`     | none     | [Transformations](#transformations) applied on fetch. Requires `valueFormat`.       |
 
 A name that is both virtual and physical resolves to the virtual topic.
 
@@ -85,9 +86,56 @@ Filtering drops records from the fetched batches without renumbering: surviving 
 | Type   | Value                                                                                                     |
 |--------|-----------------------------------------------------------------------------------------------------------|
 | `json` | A JSON document.                                                                                          |
-| `avro` | Schema registry wire format. Needs the cluster's [`schemaRegistry`](/docs/configuration#schema-registry). |
+| `avro` | Schema registry wire format. Needs the cluster's [`schemaRegistry`](/docs/configuration#schema-registry). As an output, `subject` (required) and `version` (default latest) name the schema to encode with. |
+| `xml`  | An XML document; attributes as `@`-prefixed fields. As an output, `root` (required) names the root element. |
 
 `onDecodeError`: `skip` (default) drops the record, `include` delivers it, `fail` fails the fetch.
+
+## Transformations
+
+Applied in order during Fetch, after the filter, to each record the filter keeps. The physical topic is never rewritten: produced records are stored with the value and headers the client sent. Keys, offsets and timestamps are never changed.
+
+| Type           | Effect                                                                    | Fields            |
+|----------------|---------------------------------------------------------------------------|-------------------|
+| `dropFields`   | Removes fields. A missing field is ignored.                               | `fields`          |
+| `renameField`  | Moves a field; across levels it flattens or nests it.                     | `from`, `to`      |
+| `defaultField` | Sets a field when absent or `null`, any JSON value.                       | `field`, `value`  |
+| `cel`          | Replaces the value with the CEL `expression`'s result. Bindings as for filters. | `expression` |
+| `convert`      | Encodes the result as `format` instead of `valueFormat`.                  | `format`          |
+| `dropHeaders`  | Removes every header with one of the names.                               | `headers`         |
+| `setHeader`    | Replaces every header named `header` by one with `value` (UTF-8).         | `header`, `value` |
+
+Fields are dotted paths (`customer.name`); a list on the path applies the step to each element. At most one `convert`; only header steps may follow it. A record that cannot be transformed is handled per the `valueFormat`'s `onDecodeError`; under `include` it is delivered as stored.
+
+### Format and headers
+
+The virtual topic fixes the format clients read: the `convert` format, else `valueFormat`. Clients do not choose it; an unknown format type is rejected when the topic is written. Avro output carries the schema id of the `subject` it was encoded with.
+
+Stored headers that describe the format (`content-type`, Spring's `__TypeId__`) still describe the stored value after a `convert`. Rewrite them with header steps. Header steps apply only to records whose value was transformed, so headers always match the delivered bytes: a tombstone or a record delivered as stored under `include` keeps its stored headers. Names are case-sensitive.
+
+```yaml title="VirtualTopic orders.json: Avro served as JSON"
+apiVersion: kawa-platform.github.io/v1alpha1
+kind: VirtualTopic
+metadata:
+  name: orders.json
+spec:
+  physicalTopic: orders-v2
+  valueFormat:
+    type: avro
+  transformations:
+    - type: dropFields
+      fields: [internal_risk_score]
+    - type: convert
+      format:
+        type: json
+    - type: dropHeaders
+      headers: [__TypeId__]
+    - type: setHeader
+      header: content-type
+      value: application/json
+```
+
+Every transformed record is decoded and re-encoded on every fetch, by every consumer.
 
 ## Managing
 
@@ -116,7 +164,7 @@ spec:
 |-----------------------|-------------------------------------------------------------------------------------|
 | `physicalTopic`       | Required. `topic` above.                                                            |
 | `virtualTopic`        | `name` above. Defaults to `metadata.name`; set it for names Kubernetes rejects. Immutable. |
-| `exposePhysicalTopic`, `filter`, `valueFormat` | As above.                                                  |
+| `exposePhysicalTopic`, `filter`, `valueFormat`, `transformations` | As above.                               |
 | `deletionPolicy`      | `Delete` (default) removes the virtual topic on deletion, `Retain` keeps it.        |
 
 Ownership, adoption and status are described in [Kubernetes operator](/docs/operator#ownership).
