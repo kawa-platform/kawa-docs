@@ -90,7 +90,7 @@ The cluster needs a [`schemaRegistry`](/docs/configuration#schema-registry) to d
 | Field   | Default  | Description                                                              |
 |---------|----------|--------------------------------------------------------------------------|
 | `field` | required | Dotted path of the field. Missing parent objects are created.            |
-| `value` | required | Any JSON value: string, number, boolean, `null`, object or list.         |
+| `value` | required | Any JSON value: string, number, boolean, `null`, object or list. Optional in the [operator resource](#virtualtopic-operator-resource). |
 
 A scalar where the path needs an object fails the record.
 
@@ -198,7 +198,7 @@ Transformations are part of the virtual topic: set them in Studio or in the [`Vi
 
 - it has steps but no `valueFormat`;
 - a step has a field its type does not take, also inside a `convert` format (`{"type": "json", "foo": 1}`);
-- a `defaultField` step has no `value`; an explicit `null` is allowed;
+- a `defaultField` step has no `value`; an explicit `null` is allowed, and the [operator resource](#virtualtopic-operator-resource) fills it in;
 - `convert` is not the last step;
 - the output format is Avro without `subject`, or XML without `root`;
 - Avro, as the `valueFormat` or a `convert` format, is used on a cluster without a `schemaRegistry`;
@@ -239,7 +239,9 @@ The API server rejects a resource on admission when:
 - **Step fields**: a step sets a field of another step type, or misses its own: `fields` (at least one) for `dropFields`, `from` and `to` for `renameField`, `field` for `defaultField`, `expression` for `cel`, `format` for `convert`.
 - **Format fields**: `subject` or `version` on a format other than `avro`, `version` without `subject` or below 1, or `root` on a format other than `xml`.
 
-The rules that span steps or need the cluster come back from the gateway: steps without a `valueFormat`, a `defaultField` without `value`, `convert` not last, Avro output without `subject`, XML output without `root`, and Avro on a cluster without a `schemaRegistry`. The resource then reports `Ready=False` with reason `InvalidSpec` and the gateway's message, `transformations[N] (type)` included for a step.
+`value` on a `defaultField` is any JSON value: string, number, boolean, object or list. Unlike in Studio it is optional: leaving it out, or writing `value: null`, sets the field to `null` when it is absent or `null`; the operator sends the `null` for you. Kubernetes drops an explicit `null`, so `kubectl get` does not show it.
+
+The rules that span steps or need the cluster come back from the gateway: steps without a `valueFormat`, `value` on a step other than `defaultField`, `convert` not last, Avro output without `subject`, XML output without `root`, and Avro on a cluster without a `schemaRegistry`. The resource then reports `Ready=False` with reason `InvalidSpec` and the gateway's message, `transformations[N] (type)` included for a step.
 
 The operator keeps the steps in sync like the rest of the spec:
 
