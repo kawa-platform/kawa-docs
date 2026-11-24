@@ -50,6 +50,8 @@ Applied during Fetch. `type` selects the filter:
 | `headerMatches`    | header `header` fully matches regex `value` (anchored)  | `header`, `value` |
 | `cel`              | the [CEL](https://cel.dev) `expression` is `true`       | `expression`      |
 
+Every filter also takes `errorHeader` (default `true`), see [error headers](#error-headers).
+
 An invalid `headerMatches` regex is rejected when the topic is written.
 
 CEL bindings:
@@ -101,6 +103,39 @@ Filtering drops records from the fetched batches without renumbering: surviving 
 `onDecodeError` applies to a record whose value does not decode, or that the [transformations](/docs/modules/virtual-topics/transformations#errors) cannot transform: `skip` (default) drops it, leaving an offset gap, `include` delivers it as stored (unfiltered, untransformed), `fail` delivers the records before it, then fails its partition with `CORRUPT_MESSAGE`, and a Java consumer's `poll()` throws a `KafkaException`. An unreachable schema registry is not a decode error. See [Errors](/docs/modules/virtual-topics/transformations#errors).
 
 When transformations encode values as `avro`, it needs `subject` (and optionally `version`); as `xml`, it needs `root`. A topic with only header steps encodes nothing and needs neither. See [Formats](/docs/modules/virtual-topics/transformations#formats).
+
+### Error headers
+
+Under `include`, a record the filter cannot decode is delivered as if it matched, and one a transformation fails on is delivered with its stored value, untransformed. Such a record carries headers that say why:
+
+| Header             | Value                                                                                          |
+|--------------------|------------------------------------------------------------------------------------------------|
+| `kawa-error`       | Exception type and message, e.g. `PayloadDecodeException: record value is not valid JSON at line 1, column 1`. Cut at 256 characters. |
+| `kawa-error-stage` | `filter` or `transformation`.                                                                  |
+| `kawa-error-step`  | Transformations only. 0-based index of the failing step.                                       |
+
+- **Payload**: the reason never contains record content or a stack trace; it names types, field paths and parse locations.
+- **Step**: a value that does not decode counts as the first value step; a result that does not encode counts as the `convert` step, or the last value step without one. Header steps never fail.
+- **Header steps**: the error headers are added after them, so a header step cannot remove or overwrite them.
+- **Existing headers**: kept. A `kawa-error*` header the record already had is replaced, not repeated.
+- **Opt-out**: set `errorHeader: false` on the filter or on a transformation step. Default `true`. A record that filter or step fails on is still delivered, without the headers.
+- **Other policies**: `skip` and `fail` never add the headers.
+
+```yaml title="VirtualTopic orders.eu: no error headers from the filter"
+apiVersion: kawa-platform.github.io/v1alpha1
+kind: VirtualTopic
+metadata:
+  name: orders.eu
+spec:
+  physicalTopic: orders-v2
+  valueFormat:
+    type: json
+    onDecodeError: include
+  filter:
+    type: cel
+    expression: value.region == "eu"
+    errorHeader: false
+```
 
 ## Managing
 
