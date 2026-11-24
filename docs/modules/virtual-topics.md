@@ -25,7 +25,7 @@ That makes the topic name an interface you control, independent of where the dat
 | `exposePhysicalTopic` | `false`  | Also list the physical topic in Metadata.                                           |
 | `filter`              | none     | [Consume filter](#filters).                                                         |
 | `valueFormat`         | none     | [Value format](#value-formats), so `cel` filters see decoded values.                |
-| `transformations`     | none     | [Transformations](#transformations) applied on fetch. Requires `valueFormat`.       |
+| `transformations`     | none     | [Transformations](#transformations) applied on fetch. Value steps and `convert` require `valueFormat`. |
 
 A name that is both virtual and physical resolves to the virtual topic.
 
@@ -111,7 +111,9 @@ Fields are dotted paths (`customer.name`); a list on the path applies the step t
 
 The virtual topic fixes the format clients read: the `convert` format, else `valueFormat`. Clients do not choose it; an unknown format type is rejected when the topic is written. Avro output carries the schema id of the `subject` it was encoded with.
 
-Stored headers that describe the format (`content-type`, Spring's `__TypeId__`) still describe the stored value after a `convert`. Rewrite them with header steps. Header steps apply only to records whose value was transformed, so headers always match the delivered bytes: a tombstone or a record delivered as stored under `include` keeps its stored headers. Names are case-sensitive.
+Stored headers that describe the format (`content-type`, Spring's `__TypeId__`) still describe the stored value after a `convert`. Rewrite them with header steps. Header steps run on every record with a value, so headers describe the delivered value. Two cases keep their stored headers: a tombstone, and a value delivered as stored after a failed transformation while the topic has a `convert`, because that value is still in the stored format. Names are case-sensitive.
+
+A topic with only header steps decodes nothing: its values pass through byte for byte, and it needs no `valueFormat`.
 
 ```yaml title="VirtualTopic orders.json: Avro served as JSON"
 apiVersion: kawa-platform.github.io/v1alpha1
@@ -135,7 +137,7 @@ spec:
       value: application/json
 ```
 
-Every transformed record is decoded and re-encoded on every fetch, by every consumer.
+A topic with value steps or a `convert` decodes and re-encodes every record on every fetch, for every consumer.
 
 ## Managing
 
