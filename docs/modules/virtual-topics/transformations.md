@@ -5,9 +5,9 @@ sidebar_position: 1
 
 # Transformations
 
-**A transformation is to a virtual topic what a `SELECT` list is to a SQL view.** It reshapes each record value a consumer fetches from a [virtual topic](/docs/modules/virtual-topics): it drops, renames and defaults fields, computes a new value with CEL, and can deliver the result in another format than the one stored. Nothing is copied or written back. The physical topic keeps the original records, and each virtual topic on it can show them differently.
+**A transformation is to a virtual topic what a `SELECT` list is to a SQL view.** It reshapes each record a consumer fetches from a [virtual topic](/docs/modules/virtual-topics): it drops, renames and defaults value fields, computes a new value with CEL, can deliver the result in another format than the one stored, and can drop or set headers. Nothing is copied or written back. The physical topic keeps the original records, and each virtual topic on it can show them differently.
 
-Transformations apply on fetch only, and only to the record value. Keys and headers are never changed, tombstones pass through, and produced records reach the broker as sent.
+Transformations apply on fetch only. Keys, offsets and timestamps are never changed, tombstones pass through with their headers, and produced records reach the broker as sent.
 
 ![A consumer fetches orders.virtual. kawa runs the consume filter on the stored Avro records of orders.raw, applies the transformation steps in order, and encodes the result as JSON before the records reach the consumer](../../img/transformations.svg)
 
@@ -15,8 +15,11 @@ For each fetched record, kawa:
 
 1. **Filters**: the [consume filter](/docs/modules/virtual-topics#filters) runs on the stored value. Dropped records are not transformed.
 2. **Decodes** the value with the topic's `valueFormat`.
-3. **Maps**: the steps run in order, each on the previous step's result.
-4. **Encodes** the result in the output format: the format of a trailing `convert` step, else the `valueFormat`.
+3. **Maps**: the value steps run in order, each on the previous step's result.
+4. **Encodes** the result in the output format: the format of the `convert` step, else the `valueFormat`.
+5. **Rewrites headers**: the [header steps](#header-steps) run in order on the record's headers.
+
+A topic with only header steps skips 2 to 4: its values pass through byte for byte, and it needs no `valueFormat`.
 
 ## Example
 
@@ -64,7 +67,11 @@ The cluster needs a [`schemaRegistry`](/docs/configuration#schema-registry) to d
 | `renameField`  | `from`, `to`          | Moves a field, keeping its value. An absent `from` is ignored.         |
 | `defaultField` | `field`, `value`      | Sets the field when it is absent or `null`.                            |
 | `cel`          | `expression`          | Replaces the value with the expression's result.                       |
-| `convert`      | `format`              | Encodes the result in `format`. Only allowed as the last step.         |
+| `convert`      | `format`              | Encodes the result in `format`. At most one; only header steps may follow it. |
+| `dropHeaders`  | `headers`             | Removes every header with one of the names.                            |
+| `setHeader`    | `header`, `value`     | Replaces every header named `header` with one carrying `value`.        |
+
+Value steps (`dropFields`, `renameField`, `defaultField`, `cel`) and `convert` need a `valueFormat`; [header steps](#header-steps) do not.
 
 ### dropFields
 
@@ -116,6 +123,47 @@ The bindings are those of [CEL filters](/docs/modules/virtual-topics#filters): `
 
 Without `convert`, values are encoded back in the `valueFormat`.
 
+### Header steps
+
+Stored headers that describe the format (`content-type`, Spring's `__TypeId__`) still describe the stored value after a `convert`. Header steps rewrite them so they describe the delivered value. Names are matched exactly; Kafka header names are case-sensitive.
+
+| Step          | Field     | Default  | Description                                                            |
+|---------------|-----------|----------|------------------------------------------------------------------------|
+| `dropHeaders` | `headers` | required | Header names to remove. At least one. A name the record lacks is ignored. |
+| `setHeader`   | `header`  | required | Header name. Every header with this name is replaced by one.           |
+| `setHeader`   | `value`   | required | Header value, a string, sent as UTF-8.                                 |
+
+Header steps run on every record with a value. Two cases keep their stored headers:
+
+- **Tombstones**: a record without a value.
+- **Delivered as stored**: a value delivered untransformed under `onDecodeError: include` while the topic has a `convert`, because that value is still in the stored format.
+
+So `dropHeaders` is not a way to hide a header from consumers: tombstones and such records still carry it.
+
+```yaml title="VirtualTopic orders.json: Avro served as JSON"
+apiVersion: kawa-platform.github.io/v1alpha1
+kind: VirtualTopic
+metadata:
+  name: orders.json
+spec:
+  physicalTopic: orders.raw
+  valueFormat:
+    type: avro
+  transformations:
+    - type: dropFields
+      fields: [internal_risk_score]
+    - type: convert
+      format:
+        type: json
+    - type: dropHeaders
+      headers: [__TypeId__]
+    - type: setHeader
+      header: content-type
+      value: application/json
+```
+
+A topic with only header steps decodes nothing, needs no `valueFormat`, and with an Avro or XML `valueFormat` needs no `subject` or `root`.
+
 ## Formats
 
 `valueFormat` decodes the stored value; the output format encodes the result. Both take a `type` and these options:
@@ -123,9 +171,11 @@ Without `convert`, values are encoded back in the `valueFormat`.
 | Field           | Formats | Default  | Description                                                                                  |
 |-----------------|---------|----------|----------------------------------------------------------------------------------------------|
 | `onDecodeError` | all     | `skip`   | On the `valueFormat`: what happens to a record that cannot be transformed. See [Errors](#errors). Ignored on a `convert` format. |
-| `subject`       | `avro`  | none     | Schema registry subject to encode with. Required when Avro is the output format.             |
+| `subject`       | `avro`  | none     | Schema registry subject to encode with. Required when values are encoded as Avro: Avro is the `convert` format, or the `valueFormat` with a value step and no `convert`. |
 | `version`       | `avro`  | latest   | Subject version to encode with. Requires `subject`. 1 or higher.                             |
-| `root`          | `xml`   | none     | Root element name. Required when XML is the output format. When set, decoding refuses another root. |
+| `root`          | `xml`   | none     | Root element name. Required when values are encoded as XML, as for `subject`. When set, decoding refuses another root. |
+
+Header steps encode nothing, so a topic with only header steps needs neither `subject` nor `root`.
 
 - **`json`**: integers that fit a 64-bit long stay integers; other numbers become doubles, so an integer beyond the long range comes back as `1.2345678901234567E19`. Whitespace and number spelling are normalized (`1e2` becomes `100.0`). An explicit `null` stays present, an absent field stays absent.
 - **`avro`**: decoded with the writer schema named in each record, encoded with the schema registered under `subject`. The value is resolved against that schema the way an Avro reader resolves a writer's record: fields the schema lacks are ignored, fields the value lacks take the schema default, and a missing field without a default or a value of the wrong type fails the record. Decimals pass through doubles, so digits beyond double precision are lost. Any Avro, decoding or encoding, needs the cluster's [`schemaRegistry`](/docs/configuration#schema-registry).
@@ -172,7 +222,7 @@ When it reaches the record, the consuming application gets an exception: `Encoun
 
 ## Offsets and delivery
 
-Records keep their offsets, timestamps, keys and headers. Batches keep their producer and transaction metadata, compression and last offset, so consumers move past a batch whose records were all skipped. `read_committed` consumers still drop aborted records, and transaction markers pass unchanged. Commits, seeks and rebalances work as on any virtual topic.
+Records keep their offsets, timestamps and keys, and their headers unless [header steps](#header-steps) rewrite them. Batches keep their producer and transaction metadata, compression and last offset, so consumers move past a batch whose records were all skipped. `read_committed` consumers still drop aborted records, and transaction markers pass unchanged. Commits, seeks and rebalances work as on any virtual topic.
 
 A change to the transformations applies from the next fetch response, also within a running consumer's fetch session.
 
@@ -180,7 +230,7 @@ With [`exposePhysicalTopic`](/docs/modules/virtual-topics#definition), the physi
 
 ## Performance
 
-Every record of a transformed topic is decoded, mapped and encoded on every fetch, and every consumer pays again. Measured on one core, with batches of 500 JSON records of about 180 bytes:
+Every record of a topic with value steps or a `convert` is decoded, mapped and encoded on every fetch, and every consumer pays again. Header steps alone only rewrite headers. Measured on one core, with batches of 500 JSON records of about 180 bytes:
 
 | Virtual topic                                  | Per record  |
 |------------------------------------------------|-------------|
@@ -196,11 +246,11 @@ lz4 compression adds less than 5%. A `cel` filter together with transformations 
 
 Transformations are part of the virtual topic: set them in Studio or in the [`VirtualTopic` operator resource](#virtualtopic-operator-resource). kawa refuses a virtual topic before anything is written when:
 
-- it has steps but no `valueFormat`;
+- it has value steps or a `convert` but no `valueFormat`;
 - a step has a field its type does not take, also inside a `convert` format (`{"type": "json", "foo": 1}`);
 - a `defaultField` step has no `value`; an explicit `null` is allowed, and the [operator resource](#virtualtopic-operator-resource) fills it in;
-- `convert` is not the last step;
-- the output format is Avro without `subject`, or XML without `root`;
+- it has more than one `convert`, or a value step after it;
+- values are encoded as Avro without `subject`, or as XML without `root`. Header steps alone encode nothing;
 - Avro, as the `valueFormat` or a `convert` format, is used on a cluster without a `schemaRegistry`;
 - a path is blank or has an empty segment (`a..b`, `.a`, `a.`);
 - a `cel` expression does not compile.
@@ -236,12 +286,12 @@ spec:
 
 The API server rejects a resource on admission when:
 
-- **Step fields**: a step sets a field of another step type, or misses its own: `fields` (at least one) for `dropFields`, `from` and `to` for `renameField`, `field` for `defaultField`, `expression` for `cel`, `format` for `convert`.
+- **Step fields**: a step sets a field of another step type, or misses its own: `fields` (at least one) for `dropFields`, `from` and `to` for `renameField`, `field` for `defaultField`, `expression` for `cel`, `format` for `convert`, `headers` (at least one, none empty) for `dropHeaders`, `header` for `setHeader`.
 - **Format fields**: `subject` or `version` on a format other than `avro`, `version` without `subject` or below 1, or `root` on a format other than `xml`.
 
 `value` on a `defaultField` is any JSON value: string, number, boolean, object or list. Unlike in Studio it is optional: leaving it out, or writing `value: null`, sets the field to `null` when it is absent or `null`; the operator sends the `null` for you. Kubernetes drops an explicit `null`, so `kubectl get` does not show it.
 
-The rules that span steps or need the cluster come back from the gateway: steps without a `valueFormat`, `value` on a step other than `defaultField`, `convert` not last, Avro output without `subject`, XML output without `root`, and Avro on a cluster without a `schemaRegistry`. The resource then reports `Ready=False` with reason `InvalidSpec` and the gateway's message, `transformations[N] (type)` included for a step.
+The rules that span steps or need the cluster come back from the gateway: value steps or `convert` without a `valueFormat`, `value` missing on `setHeader` or set on a step other than `defaultField` and `setHeader`, a value step after `convert`, values encoded as Avro without `subject` or as XML without `root`, and Avro on a cluster without a `schemaRegistry`. The resource then reports `Ready=False` with reason `InvalidSpec` and the gateway's message, `transformations[N] (type)` included for a step.
 
 The operator keeps the steps in sync like the rest of the spec:
 
@@ -252,4 +302,4 @@ The operator keeps the steps in sync like the rest of the spec:
 
 - **Fetch only**: there is no produce direction. Mappings are one-way: a dropped or overwritten field cannot be restored.
 - **Values only**: keys are never transformed.
-- **Headers unchanged**: content-type and schema-id headers still describe the stored value, also after a `convert`.
+- **Headers on tombstones**: header steps do not run on tombstones or on values delivered as stored after a failed `convert`; see [Header steps](#header-steps).
