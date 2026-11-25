@@ -5,9 +5,9 @@ sidebar_position: 1
 
 # Virtual topics
 
-**A virtual topic is to a Kafka topic what a SQL view is to a table.** It is a topic name that exists only on the gateway, backed by a physical topic and optionally filtered. Clients produce, consume, commit offsets and join groups on it like on any topic. Nothing is copied: partitions, offsets, retention and storage are the physical topic's.
+**A virtual topic is to a Kafka topic what a SQL view is to a table.** It is a topic name that exists only on the gateway, backed by a physical topic and optionally filtered. Clients produce, consume, commit offsets and join groups on it like on any topic, within the [limits of shared physical topics](#shared-physical-topics). Nothing is copied: partitions, offsets, retention and storage are the physical topic's.
 
-![Consumers use the virtual topics orders.eu, orders.us and orders, backed by the hidden physical topic orders-v2, next to the ordinary physical topic payments, which passes through unchanged](../img/virtual-topics.svg)
+![Consumers use the virtual topics orders.eu, orders.us and orders, backed by the hidden physical topic orders-v2, next to the ordinary physical topic payments, which passes through unchanged](../../img/virtual-topics.svg)
 
 That makes the topic name an interface you control, independent of where the data lives:
 
@@ -24,10 +24,19 @@ That makes the topic name an interface you control, independent of where the dat
 | `topic`               | required | Physical topic. Need not exist yet.                                                 |
 | `exposePhysicalTopic` | `false`  | Also list the physical topic in Metadata.                                           |
 | `filter`              | none     | [Consume filter](#filters).                                                         |
-| `valueFormat`         | none     | [Value format](#value-formats), so `cel` filters see decoded values.                |
-| `transformations`     | none     | [Transformations](#transformations) applied on fetch. Value steps and `convert` require `valueFormat`. |
+| `valueFormat`         | none     | [Value format](#value-formats), so `cel` filters see decoded values. Required with `transformations`. |
+| `transformations`     | none     | [Transformation](/docs/modules/virtual-topics/transformations) steps, applied in order to each value on fetch. |
 
 A name that is both virtual and physical resolves to the virtual topic.
+
+## Shared physical topics
+
+Several virtual topics can be backed by the same physical topic, such as `orders.eu` and `orders.us` on `orders-v2`. The broker keeps records, fetch positions and committed offsets per physical partition, so two of those names in one request or one consumer group would collide:
+
+- **One name per request**: a produce, fetch, list-offsets, offset-commit or offset-fetch request that names two virtual topics backed by the same physical topic is refused with `INVALID_REQUEST` and not sent to the broker. So is a group join whose subscription does.
+- **One name per client**: to write to several of them, use one producer per virtual topic. To read several, use one consumer group, with one consumer, per virtual topic.
+
+The gateway cannot catch two members of one group that each subscribe to a different virtual topic on the same physical topic, or a group that switches from one such virtual topic to another and resumes from the old one's committed offsets. The consumer group protocol of [KIP-848](https://cwiki.apache.org/confluence/display/KAFKA/KIP-848%3A+The+Next+Generation+of+the+Consumer+Rebalance+Protocol) (`group.protocol=consumer`) is not supported on virtual topics yet.
 
 ## Filters
 
@@ -86,58 +95,12 @@ Filtering drops records from the fetched batches without renumbering: surviving 
 | Type   | Value                                                                                                     |
 |--------|-----------------------------------------------------------------------------------------------------------|
 | `json` | A JSON document.                                                                                          |
-| `avro` | Schema registry wire format. Needs the cluster's [`schemaRegistry`](/docs/configuration#schema-registry). As an output, `subject` (required) and `version` (default latest) name the schema to encode with. |
-| `xml`  | An XML document; attributes as `@`-prefixed fields. As an output, `root` (required) names the root element. |
+| `avro` | Schema registry wire format. Needs the cluster's [`schemaRegistry`](/docs/configuration#schema-registry). |
+| `xml`  | An XML document. Elements become fields, attributes `@name` fields; every scalar is a string.            |
 
-`onDecodeError`: `skip` (default) drops the record, `include` delivers it, `fail` fails the fetch.
+`onDecodeError` applies to a record whose value does not decode, or that the [transformations](/docs/modules/virtual-topics/transformations#errors) cannot transform: `skip` (default) drops it, leaving an offset gap, `include` delivers it as stored (unfiltered, untransformed), `fail` delivers the records before it, then fails its partition with `CORRUPT_MESSAGE`, and a Java consumer's `poll()` throws a `KafkaException`. An unreachable schema registry is not a decode error. See [Errors](/docs/modules/virtual-topics/transformations#errors).
 
-## Transformations
-
-Applied in order during Fetch, after the filter, to each record the filter keeps. The physical topic is never rewritten: produced records are stored with the value and headers the client sent. Keys, offsets and timestamps are never changed.
-
-| Type           | Effect                                                                    | Fields            |
-|----------------|---------------------------------------------------------------------------|-------------------|
-| `dropFields`   | Removes fields. A missing field is ignored.                               | `fields`          |
-| `renameField`  | Moves a field; across levels it flattens or nests it.                     | `from`, `to`      |
-| `defaultField` | Sets a field when absent or `null`, any JSON value.                       | `field`, `value`  |
-| `cel`          | Replaces the value with the CEL `expression`'s result. Bindings as for filters. | `expression` |
-| `convert`      | Encodes the result as `format` instead of `valueFormat`.                  | `format`          |
-| `dropHeaders`  | Removes every header with one of the names.                               | `headers`         |
-| `setHeader`    | Replaces every header named `header` by one with `value` (UTF-8).         | `header`, `value` |
-
-Fields are dotted paths (`customer.name`); a list on the path applies the step to each element. At most one `convert`; only header steps may follow it. A record that cannot be transformed is handled per the `valueFormat`'s `onDecodeError`; under `include` it is delivered as stored.
-
-### Format and headers
-
-The virtual topic fixes the format clients read: the `convert` format, else `valueFormat`. Clients do not choose it; an unknown format type is rejected when the topic is written. Avro output carries the schema id of the `subject` it was encoded with.
-
-Stored headers that describe the format (`content-type`, Spring's `__TypeId__`) still describe the stored value after a `convert`. Rewrite them with header steps. Header steps run on every record with a value, so headers describe the delivered value. Two cases keep their stored headers: a tombstone, and a value delivered as stored after a failed transformation while the topic has a `convert`, because that value is still in the stored format. Names are case-sensitive.
-
-A topic with only header steps decodes nothing: its values pass through byte for byte, and it needs no `valueFormat`.
-
-```yaml title="VirtualTopic orders.json: Avro served as JSON"
-apiVersion: kawa-platform.github.io/v1alpha1
-kind: VirtualTopic
-metadata:
-  name: orders.json
-spec:
-  physicalTopic: orders-v2
-  valueFormat:
-    type: avro
-  transformations:
-    - type: dropFields
-      fields: [internal_risk_score]
-    - type: convert
-      format:
-        type: json
-    - type: dropHeaders
-      headers: [__TypeId__]
-    - type: setHeader
-      header: content-type
-      value: application/json
-```
-
-A topic with value steps or a `convert` decodes and re-encodes every record on every fetch, for every consumer.
+As the output of transformations, `avro` takes `subject` and `version` and `xml` takes `root`; see [Formats](/docs/modules/virtual-topics/transformations#formats).
 
 ## Managing
 

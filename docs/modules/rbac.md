@@ -14,7 +14,7 @@ ACLs are grouped into roles, and roles are given to groups of clients:
 - **Default deny**: a request is allowed only when an ACL grants it. A gateway without roles denies everything.
 - **DENY wins** over any matching ALLOW.
 - **Names as the client uses them**: ACLs apply to virtual topic names, so a team can read `orders.eu` without access to the topic behind it. See [Virtual topics](/docs/modules/virtual-topics).
-- **Invisible when denied**: topics a client may not describe do not appear in its metadata.
+- **Invisible when denied**: topics a client may not describe do not appear in its metadata, or in a group's committed offsets when it fetches all of them.
 - **Per topic**: a produce or fetch that spans topics keeps the allowed ones; only the denied topics fail.
 
 ## ACLs
