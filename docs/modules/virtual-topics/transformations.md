@@ -73,6 +73,8 @@ The cluster needs a [`schemaRegistry`](/docs/configuration#schema-registry) to d
 
 Value steps (`dropFields`, `renameField`, `defaultField`, `cel`) and `convert` need a `valueFormat`; [header steps](#header-steps) do not.
 
+Every step also takes `errorHeader` (default `true`): `false` delivers a record the step fails on under `include` without the [error headers](/docs/modules/virtual-topics#error-headers).
+
 ### dropFields
 
 | Field    | Default  | Description                               |
@@ -194,7 +196,7 @@ A record whose value does not decode, fails a step, or cannot be encoded follows
 | Policy             | The consumer gets                                                              |
 |--------------------|--------------------------------------------------------------------------------|
 | `skip` (default)   | Nothing. The record is dropped, leaving an offset gap.                         |
-| `include`          | The value as stored, untransformed, so not in the format the consumer expects. |
+| `include`          | The value as stored, untransformed, with [error headers](/docs/modules/virtual-topics#error-headers) naming the failing step. |
 | `fail`             | The records before it, then `CORRUPT_MESSAGE` on its partition. See [below](#what-the-application-sees-with-fail). |
 
 Every record is handled on its own, so one response can mix transformed and skipped records, and a topic holding values in several formats only loses the ones that do not decode. Use `fail` when such a record must stop consumption instead of being lost silently.
