@@ -71,6 +71,7 @@ Clients in a browser send an `Origin` header; kawa accepts their calls to `/mcp`
 | `describe_topic`          | One virtual or physical topic in detail, including the physical topic's configs. |
 | `list_consumer_groups`    | Every group on the cluster with its state and [lag](#consumer-group-lag).   |
 | `describe_consumer_group` | One group: its members and their partitions, and the lag per partition.     |
+| `peek_records`            | Records of a physical topic: offsets, timestamps, keys and, on request, decoded values. See [Peeking records](#peeking-records). |
 
 An unknown topic or group is a tool error that names it; an invalid argument is a tool error that says why.
 
@@ -80,6 +81,46 @@ An unknown topic or group is a tool error that names it; an invalid argument is 
 - **Lag**: end offset (read committed) minus committed offset, on the physical topic. A partition without a commit is counted in `uncommittedPartitions`, not as zero lag.
 - **Upper bound**: when a virtual topic on the physical topic filters, records the filter drops still count as lag, and `lagIsUpperBound` is `true`.
 - **Physical, not virtual**: the tools do not say which virtual topic a group read. See [Shared physical topics](/docs/modules/virtual-topics#shared-physical-topics).
+
+### Peeking records
+
+```text title="Prompt"
+Did shipment-events get a message mentioning John in the last hour?
+```
+
+The agent calls `peek_records` with `start_time` an hour ago and `value_contains: "John"`. kawa reads up to 50 records from that time on, decodes their values and answers with the matches and how much of the hour it covered.
+
+`peek_records` reads with its own consumer outside any consumer group: it commits no offsets and does not affect the topic's consumers. It reads physical topics only; a virtual topic is refused with the name of its physical topic, as its filter and transformations would not apply.
+
+| Argument         | Default | Description                                                                 |
+|------------------|---------|-----------------------------------------------------------------------------|
+| `topic`          |         | Required. Physical topic.                                                   |
+| `partitions`     | All     | Partitions to read.                                                         |
+| `limit`          | `50`    | Most records to read, 1 to 500, over all selected partitions together.      |
+| `start_offset`   |         | Inclusive start offset. Only with one selected partition.                   |
+| `start_offsets`  |         | Inclusive start offset per partition, e.g. `{"0": 1200, "1": 850}`. Selects those partitions when `partitions` is omitted. |
+| `start_time`     |         | Start at the first record whose timestamp is at or after this ISO-8601 time. |
+| `end_offset`     |         | Exclusive end offset. Only with one selected partition.                     |
+| `end_offsets`    |         | Exclusive end offset per partition.                                         |
+| `until`          |         | Exclusive upper bound on the record timestamp, ISO-8601.                    |
+| `key_contains`   |         | Keep records whose UTF-8 key contains this text, ignoring case. Values are not decoded. |
+| `value_contains` |         | Keep records whose decoded value contains this text in any field value at any depth, ignoring case. Field names are not searched. |
+| `include_values` | `false` | Decode and return values.                                                   |
+| `format`         | `auto`  | `auto`, `json`, `xml`, `avro`, `string` or `raw` (Base64, not decoded).     |
+| `include_raw`    | `false` | Also return each value's bytes as Base64.                                   |
+
+A start offset and `start_time` exclude each other, as do an end offset and `until`, and the single and per-partition forms of an offset.
+
+- **Position**: without a start, the latest records, read back from the end. With a start, forward from there to the end offset, `until`, or the end of the log. Records written after the call started are not read.
+- **Shared limit**: each partition gets an equal share of `limit`; a partition with fewer records hands the rest to the others, so a busy partition does not crowd out quiet ones.
+- **Clamped offsets**: an offset outside the partition's log, such as one removed by retention, is moved to the nearest one that exists and reported in the partition's `notes`. The result keeps both the requested and the inspected offsets.
+- **Timestamps**: time arguments use Kafka record timestamps (`CreateTime` or `LogAppendTime`), not when an application received a record. With `CreateTime` they can be out of order; records outside the time range are counted in `outsideTimeRange` and not returned.
+- **Counting**: each partition's `offsetsInRange` counts the offsets in the range without reading records. Compaction, transaction markers and retention leave gaps, so it is an upper bound on the records.
+- **Formats**: `auto` decides per record: Avro in the Schema Registry wire format with a schema id the cluster's [`schemaRegistry`](/docs/configuration#clusters) knows, then JSON objects and arrays, XML, UTF-8 text. A value that matches none is `unidentified`. XML with a `DOCTYPE` is refused. A value that does not decode fails on its own; the other records still decode.
+- **Asking for the format**: when values must be decoded and `auto` cannot identify some, the result's `formatUndetermined` tells the agent to ask the user for the format and call again with `format`. kawa does not ask the user itself: its MCP server is stateless and has no elicitation.
+- **Size**: values longer than 4,000 characters and keys longer than 512 are shortened, and values stop after 200,000 characters per result. Shortened fields are flagged; records are never left out.
+
+Results are bounded. `exhaustive` is `true` only when every offset of the requested range was read in every selected partition; `limitReached`, `timedOut` and each partition's `error` say why not. A search reports `matches` and `unsearchable`: records whose key is binary or whose value does not decode count as unsearchable, not as non-matches. A search that is not exhaustive found no match only among the records read, not in the whole range.
 
 ## Resources
 
