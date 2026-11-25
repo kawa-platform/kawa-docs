@@ -24,8 +24,8 @@ That makes the topic name an interface you control, independent of where the dat
 | `topic`               | required | Physical topic. Need not exist yet.                                                 |
 | `exposePhysicalTopic` | `false`  | Also list the physical topic in Metadata.                                           |
 | `filter`              | none     | [Consume filter](#filters).                                                         |
-| `valueFormat`         | none     | [Value format](#value-formats), so `cel` filters see decoded values. Required with `transformations`. |
-| `transformations`     | none     | [Transformation](/docs/modules/virtual-topics/transformations) steps, applied in order to each value on fetch. |
+| `valueFormat`         | none     | [Value format](#value-formats), so `cel` filters see decoded values. Required with value steps or `convert`. |
+| `transformations`     | none     | [Transformation](/docs/modules/virtual-topics/transformations) steps, applied in order to each record on fetch. |
 
 A name that is both virtual and physical resolves to the virtual topic.
 
@@ -100,7 +100,7 @@ Filtering drops records from the fetched batches without renumbering: surviving 
 
 `onDecodeError` applies to a record whose value does not decode, or that the [transformations](/docs/modules/virtual-topics/transformations#errors) cannot transform: `skip` (default) drops it, leaving an offset gap, `include` delivers it as stored (unfiltered, untransformed), `fail` delivers the records before it, then fails its partition with `CORRUPT_MESSAGE`, and a Java consumer's `poll()` throws a `KafkaException`. An unreachable schema registry is not a decode error. See [Errors](/docs/modules/virtual-topics/transformations#errors).
 
-As the output of transformations, `avro` takes `subject` and `version` and `xml` takes `root`; see [Formats](/docs/modules/virtual-topics/transformations#formats).
+When transformations encode values as `avro`, it needs `subject` (and optionally `version`); as `xml`, it needs `root`. A topic with only header steps encodes nothing and needs neither. See [Formats](/docs/modules/virtual-topics/transformations#formats).
 
 ## Managing
 
