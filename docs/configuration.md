@@ -22,6 +22,7 @@ There are two kinds of gateway configuration:
 | `governance`                                                  | Dynamic | `/governance`, Studio                     |
 | `adminUsers`                                                  | Dynamic | `/admin/users`, Studio                    |
 | `modules`                                                     | Dynamic | `/modules`, Studio                        |
+| `oauthClients`                                                | Dynamic | Studio                                    |
 | `virtualClusters`                                             | Dynamic | `/virtual-clusters`                       |
 
 ## Chart values
@@ -30,7 +31,7 @@ There are two kinds of gateway configuration:
 |-------------------------------------------------------|-------------|----------------------------------------------------------------------------------------------------------------|
 | `gateway.config`                                      | `{}`        | The gateway config, described in the sections below. Mounted as `/etc/kawa/config.yaml`.                        |
 | `gateway.existingConfigMap`                           | none        | A ConfigMap with a `config.yaml` key, used instead of `gateway.config`. Set `gateway.service.kafkaPort` and `adminPort` to match. |
-| `gateway.secrets.adminPassword`, `.signingKey`        | generated   | Exposed as `KAWA_ADMIN_PASSWORD` and `KAWA_SIGNING_KEY`. Generated on first install and kept across upgrades.   |
+| `gateway.secrets.adminPassword`, `.signingKey`        | generated   | Exposed as `KAWA_ADMIN_PASSWORD` and `KAWA_SIGNING_KEY`. Generated on first install and kept across upgrades. `KAWA_ADMIN_PASSWORD` counts only when `bootstrapUser.password` references it. |
 | `gateway.secrets.existingSecret`                      | none        | A Secret with keys `admin-password` and `signing-key`, used instead.                                           |
 | `gateway.logLevel`                                    | `INFO`      | Gateway log level.                                                                                             |
 | `gateway.adminReset`                                  | `false`     | Resets the bootstrap admin's password on start. Set for one upgrade, then unset. See [Recovering from a lockout](/docs/modules/authentication#recovering-from-a-lockout). |
@@ -66,6 +67,7 @@ gateway:
         password: ${KAFKA_PASSWORD}
     admin:
       enabled: true
+      publicUrl: https://kawa-admin.example.com
       cors:
         allowedOrigins: [https://studio.example.com]
       auth:
@@ -133,7 +135,7 @@ The upstream Kafka cluster, keyed by name. Only the first entry is used. Require
 |--------------------|-------------|----------|-----------------------------------------------------------------|
 | `bootstrapServers` | string list | required | `host:port`. Only the first address is used.                    |
 | `tls`              | object      | none     | `truststore` (required), `keystore` for mTLS, `verifyHostname` (default `true`). |
-| `schemaRegistry`   | object      | none     | For virtual topics with `valueFormat: avro`.                    |
+| `schemaRegistry`   | object      | none     | For virtual topics that decode or encode Avro. Without it, such a virtual topic is refused. |
 
 The broker protocol follows from what is set: neither `tls` nor `auth.brokerAuth` is `PLAINTEXT`, `brokerAuth` only is `SASL_PLAINTEXT`, `tls` only is `SSL`, both is `SASL_SSL`.
 
@@ -165,15 +167,28 @@ The top-level `advertised` applies to the first listener; further listeners use 
 
 The admin HTTP server: admin API, Studio backend and `/docs`.
 
-| Field     | Type   | Default      | Description                                      |
-|-----------|--------|--------------|--------------------------------------------------|
-| `enabled` | bool   | `false`      | Start the admin server.                          |
-| `host`    | string | `0.0.0.0`    | Bind address.                                    |
-| `port`    | int    | `8080`       | Bind port. `0` is ephemeral.                     |
-| `cors`    | object | none         | Omit to disable CORS.                            |
-| `auth`    | object | `type: none` | See below.                                       |
+| Field       | Type   | Default                | Description                                                                                    |
+|-------------|--------|------------------------|------------------------------------------------------------------------------------------------|
+| `enabled`   | bool   | `false`                | Start the admin server.                                                                        |
+| `host`      | string | `0.0.0.0`              | Bind address.                                                                                  |
+| `port`      | int    | `8080`                 | Bind port. `0` is ephemeral.                                                                   |
+| `publicUrl` | string | `http://<host>:<port>` | The absolute `http(s)` URL clients reach the admin API at, e.g. through an ingress: scheme, host and optional port, no path. Required with `oauth` and the default `0.0.0.0` bind address. See below. |
+| `cors`      | object | none                   | Omit to disable CORS.                                                                          |
+| `auth`      | object | `type: oauth`          | See below.                                                                                     |
 
-With `type: none`, the API is open and every request runs as principal `admin`. Use `oauth` anywhere it is reachable by others.
+With `type: none`, the API is open and every request runs as principal `admin`; kawa logs a warning on every start.
+
+`publicUrl` is the URL clients reach the admin API at. kawa uses it in the URLs it hands out:
+
+- **OAuth**: the token issuer and the login addresses MCP clients discover.
+- **MCP**: the URL agents connect to, `<publicUrl>/mcp`.
+
+Unset, it defaults to the bind address, `http://<host>:<port>`. Set it whenever clients reach kawa some other way, such as through an ingress. Unset is not enough when:
+
+- **`type: oauth` with a wildcard bind address**, such as the default `0.0.0.0` or `::`: startup fails. A wildcard address only says which interfaces kawa listens on; no client can reach kawa at it. The token issuer and the login addresses would name it, so OAuth logins could not work.
+- **[MCP](/docs/modules/mcp)**: it cannot be switched on. The bind address is never used as the URL agents connect to.
+
+Serve the admin API at the root of its host. OAuth clients look for `/.well-known/...` right after the host, so a `publicUrl` with a path, such as `https://example.com/kawa`, is refused.
 
 #### cors
 
@@ -191,9 +206,11 @@ Read from the file only, never written to the config topic.
 
 | Field           | Type   | Default | Description                                                                                         |
 |-----------------|--------|---------|-----------------------------------------------------------------------------------------------------|
-| `type`          | string | `none`  | `none` or `oauth`.                                                                                  |
-| `bootstrapUser` | object | none    | `username` (an email) and `password`. Seeds the first admin user when none exist; ignored afterwards. |
+| `type`          | string | `oauth` | `oauth` or `none`.                                                                                  |
+| `bootstrapUser` | object | none    | `username` (an email) and `password`. Seeds the first admin user when none exist; ignored afterwards. Unset: the first admin user is created in Studio, see [First admin user](/docs/modules/authentication#first-admin-user). |
 | `settings`      | object | `{}`    | Settings for the selected `type`.                                                                   |
+
+With `oauth`, startup fails with one message naming every missing setting: `loginUrl`, `redirectUris`, and `admin.publicUrl` when the bind address is a wildcard.
 
 `oauth` settings:
 
@@ -201,11 +218,11 @@ Read from the file only, never written to the config topic.
 |------------------|----------|-----------|-----------------------------------------------------------------------------------------------|
 | `loginUrl`       | string   | required  | UI login page `/oauth/authorize` redirects to. For Studio: `<origin>/admin/login`.            |
 | `redirectUris`   | list     | required  | Allowed post-login redirects. For Studio: `<origin>/admin/auth/callback`.                     |
-| `issuer`         | string   | `kawa`    | `iss` and `aud` of issued tokens.                                                             |
 | `tokenTtl`       | duration | `PT15M`   | Access token lifetime.                                                                        |
 | `sessionTtl`     | duration | `PT8H`    | Login lifetime. Refreshing does not extend it.                                                |
 | `signingKey`     | string   | generated | PEM EC P-256 key. Unset, a temporary key is generated and tokens die on restart; set it for anything beyond one replica. |
 | `operatorSecret` | string   | none      | Enables the `kawa-operator` client (client credentials). See [Authentication](/docs/modules/authentication#operator-client). |
+| `clientIdMetadataDocuments` | list | `[]`  | `https` URLs of the [client ID metadata documents](/docs/modules/mcp#client-id-metadata-documents) allowed to sign in. Empty: any. |
 
 See [Authentication](/docs/modules/authentication#studio-and-the-admin-api) for admin users and sign-in.
 
@@ -217,4 +234,4 @@ Each record is a full JSON snapshot of the dynamic sections; the latest wins. It
 
 ## Modules
 
-`virtual-topics`, `rbac` and `governance`, all on by default, toggled in Studio. Disabling `rbac` fails open; see [Access control](/docs/modules/rbac#switching-access-control-off).
+Toggled in Studio; a module that was never toggled has its default. `virtual-topics`, `rbac`, `governance` and `mcp-cimd` are on by default. `mcp`, the [MCP server](/docs/modules/mcp), is off by default and can only be switched on while [`admin.publicUrl`](#admin) is set. Disabling `rbac` fails open; see [Access control](/docs/modules/rbac#switching-access-control-off).

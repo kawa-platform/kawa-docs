@@ -58,14 +58,52 @@ kawa logs in to the brokers with [`auth.brokerAuth`](/docs/configuration#authbro
 
 ## Studio and the admin API
 
-Studio and the operator use the gateway's admin API, protected by [`admin.auth`](/docs/configuration#adminauth). Use `type: oauth` anywhere the admin port is reachable by more than one person; with `none`, anyone who reaches the port is admin.
+Studio and the operator use the gateway's admin API, protected by [`admin.auth`](/docs/configuration#adminauth). The default is `type: oauth`. With `type: none`, anyone who reaches the admin port is admin.
 
 With `oauth`, kawa is its own OAuth 2.0 server:
 
 - **Admin users** sign in to Studio with email and password. Manage them in Studio. Disabling or deleting a user revokes their tokens at once; kawa refuses to disable or delete yourself or the last enabled user.
-- **The first admin user** is `bootstrapUser`, created on the first start without admin users. After that it is an ordinary user, and the password in the values file is ignored.
+- **The first admin user** is created in Studio with a setup token, or from `bootstrapUser`. See [First admin user](#first-admin-user).
 - **Sessions** last `sessionTtl` (8 hours) with access tokens of `tokenTtl` (15 minutes). There is no server-side session store.
 - **Signing key**: set `signingKey` to an EC P-256 key shared by all replicas (`openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256`). Without it, tokens die on restart and only work on the replica that issued them. The Helm chart generates one.
+- **Issuer**: tokens name [`admin.publicUrl`](/docs/configuration#admin) as their issuer, and kawa's OAuth discovery metadata names it as the authorization server. Set `publicUrl` to the URL clients reach the admin API at; with a wildcard bind address such as `0.0.0.0`, startup fails without it. Changing `publicUrl` signs everyone out.
+- **Discovery**: a request without a valid token gets a `401` that points at metadata naming kawa's login server, so OAuth clients such as MCP clients find out how to log in on their own.
+- **Other OAuth clients**: besides Studio, users can log in through OAuth clients registered on kawa, such as MCP clients. See [MCP server](/docs/modules/mcp#oauth-clients).
+
+### First admin user
+
+A gateway with `oauth` and no admin users needs a first one. Two ways:
+
+| Way                | When                       | How                                                                                               |
+|--------------------|----------------------------|---------------------------------------------------------------------------------------------------|
+| Setup token        | `bootstrapUser` unset      | Open Studio, which shows **Create the first admin** instead of the sign-in, and enter the setup token, an email and a password. |
+| `bootstrapUser`    | Automated installs         | Created on the first start without admin users. Afterwards an ordinary user; the configured password is ignored. |
+
+Where the setup token comes from depends on the number of replicas:
+
+| Replicas | Setup token                                              | In the log |
+|----------|----------------------------------------------------------|------------|
+| 1        | Generated at startup. New on every start.                | Yes.       |
+| More     | Required: set `KAWA_SETUP_TOKEN` yourself.               | No.        |
+
+**One replica**: read the token from the log, framed under `kawa setup: create the first admin user`:
+
+```bash
+kubectl -n kawa logs deploy/kawa-gateway | grep -A12 'kawa setup'
+```
+
+**More replicas**: each replica would otherwise generate a different token and reject the others', so set one token for all of them from a Secret. kawa never prints a token from `KAWA_SETUP_TOKEN`. Use a long random value, such as `openssl rand -base64 32`; kawa does not check its strength.
+
+```yaml title="my-values.yaml"
+gateway:
+  replicaCount: 3
+  extraEnv:
+    - name: KAWA_SETUP_TOKEN
+      valueFrom:
+        secretKeyRef: { name: kawa-setup, key: token }
+```
+
+The token works until the first admin user exists. Replicas starting together accept exactly one setup; every later attempt sees the sign-in.
 
 ### Operator client
 
@@ -73,4 +111,4 @@ The operator authenticates as the fixed client `kawa-operator` with the client c
 
 ### Recovering from a lockout
 
-If nobody can sign in, run `helm upgrade` once with `--reuse-values --set gateway.adminReset=true`. That start enables the bootstrap user, or recreates it, with the password from `bootstrapUser`; other admin users are untouched. Unset it on the next upgrade.
+If nobody can sign in, set `bootstrapUser` to the email of the admin user to recover and a new password, then run `helm upgrade` once with `gateway.adminReset=true`. That start enables the user, or recreates it, with the password from `bootstrapUser`; other admin users are untouched. Unset `adminReset` on the next upgrade. This also works when the first admin user was created in Studio.

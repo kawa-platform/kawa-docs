@@ -5,9 +5,9 @@ sidebar_position: 1
 
 # Virtual topics
 
-**A virtual topic is to a Kafka topic what a SQL view is to a table.** It is a topic name that exists only on the gateway, backed by a physical topic and optionally filtered. Clients produce, consume, commit offsets and join groups on it like on any topic. Nothing is copied: partitions, offsets, retention and storage are the physical topic's.
+**A virtual topic is to a Kafka topic what a SQL view is to a table.** It is a topic name that exists only on the gateway, backed by a physical topic and optionally filtered. Clients produce, consume, commit offsets and join groups on it like on any topic, within the [limits of shared physical topics](#shared-physical-topics). Nothing is copied: partitions, offsets, retention and storage are the physical topic's.
 
-![Consumers use the virtual topics orders.eu, orders.us and orders, backed by the hidden physical topic orders-v2, next to the ordinary physical topic payments, which passes through unchanged](../img/virtual-topics.svg)
+![Consumers use the virtual topics orders.eu, orders.us and orders, backed by the hidden physical topic orders-v2, next to the ordinary physical topic payments, which passes through unchanged](../../img/virtual-topics.svg)
 
 That makes the topic name an interface you control, independent of where the data lives:
 
@@ -24,9 +24,19 @@ That makes the topic name an interface you control, independent of where the dat
 | `topic`               | required | Physical topic. Need not exist yet.                                                 |
 | `exposePhysicalTopic` | `false`  | Also list the physical topic in Metadata.                                           |
 | `filter`              | none     | [Consume filter](#filters).                                                         |
-| `valueFormat`         | none     | [Value format](#value-formats), so `cel` filters see decoded values.                |
+| `valueFormat`         | none     | [Value format](#value-formats), so `cel` filters see decoded values. Required with value steps or `convert`. |
+| `transformations`     | none     | [Transformation](/docs/modules/virtual-topics/transformations) steps, applied in order to each record on fetch. |
 
 A name that is both virtual and physical resolves to the virtual topic.
+
+## Shared physical topics
+
+Several virtual topics can be backed by the same physical topic, such as `orders.eu` and `orders.us` on `orders-v2`. The broker keeps records, fetch positions and committed offsets per physical partition, so two of those names in one request or one consumer group would collide:
+
+- **One name per request**: a produce, fetch, list-offsets, offset-commit or offset-fetch request that names two virtual topics backed by the same physical topic is refused with `INVALID_REQUEST` and not sent to the broker. So is a group join whose subscription does.
+- **One name per client**: to write to several of them, use one producer per virtual topic. To read several, use one consumer group, with one consumer, per virtual topic.
+
+The gateway cannot catch two members of one group that each subscribe to a different virtual topic on the same physical topic, or a group that switches from one such virtual topic to another and resumes from the old one's committed offsets. The consumer group protocol of [KIP-848](https://cwiki.apache.org/confluence/display/KAFKA/KIP-848%3A+The+Next+Generation+of+the+Consumer+Rebalance+Protocol) (`group.protocol=consumer`) is not supported on virtual topics yet.
 
 ## Filters
 
@@ -39,6 +49,8 @@ Applied during Fetch. `type` selects the filter:
 | `headerStartsWith` | header `header` starts with `value`                     | `header`, `value` |
 | `headerMatches`    | header `header` fully matches regex `value` (anchored)  | `header`, `value` |
 | `cel`              | the [CEL](https://cel.dev) `expression` is `true`       | `expression`      |
+
+Every filter also takes `errorHeader` (default `true`), see [error headers](#error-headers).
 
 An invalid `headerMatches` regex is rejected when the topic is written.
 
@@ -86,8 +98,44 @@ Filtering drops records from the fetched batches without renumbering: surviving 
 |--------|-----------------------------------------------------------------------------------------------------------|
 | `json` | A JSON document.                                                                                          |
 | `avro` | Schema registry wire format. Needs the cluster's [`schemaRegistry`](/docs/configuration#schema-registry). |
+| `xml`  | An XML document. Elements become fields, attributes `@name` fields; every scalar is a string.            |
 
-`onDecodeError`: `skip` (default) drops the record, `include` delivers it, `fail` fails the fetch.
+`onDecodeError` applies to a record whose value does not decode, or that the [transformations](/docs/modules/virtual-topics/transformations#errors) cannot transform: `skip` (default) drops it, leaving an offset gap, `include` delivers it as stored (unfiltered, untransformed), `fail` delivers the records before it, then fails its partition with `CORRUPT_MESSAGE`, and a Java consumer's `poll()` throws a `KafkaException`. An unreachable schema registry is not a decode error. See [Errors](/docs/modules/virtual-topics/transformations#errors).
+
+When transformations encode values as `avro`, it needs `subject` (and optionally `version`); as `xml`, it needs `root`. A topic with only header steps encodes nothing and needs neither. See [Formats](/docs/modules/virtual-topics/transformations#formats).
+
+### Error headers
+
+Under `include`, a record the filter cannot decode is delivered as if it matched, and one a transformation fails on is delivered with its stored value, untransformed. Such a record carries headers that say why:
+
+| Header             | Value                                                                                          |
+|--------------------|------------------------------------------------------------------------------------------------|
+| `kawa-error`       | Exception type and message, e.g. `PayloadDecodeException: record value is not valid JSON at line 1, column 1`. Cut at 256 characters. |
+| `kawa-error-stage` | `filter` or `transformation`.                                                                  |
+| `kawa-error-step`  | Transformations only. 0-based index of the failing step.                                       |
+
+- **Payload**: the reason never contains record content or a stack trace; it names types, field paths and parse locations.
+- **Step**: a value that does not decode counts as the first value step; a result that does not encode counts as the `convert` step, or the last value step without one. Header steps never fail.
+- **Header steps**: the error headers are added after them, so a header step cannot remove or overwrite them.
+- **Existing headers**: kept. A `kawa-error*` header the record already had is replaced, not repeated.
+- **Opt-out**: set `errorHeader: false` on the filter or on a transformation step. Default `true`. A record that filter or step fails on is still delivered, without the headers.
+- **Other policies**: `skip` and `fail` never add the headers.
+
+```yaml title="VirtualTopic orders.eu: no error headers from the filter"
+apiVersion: kawa-platform.github.io/v1alpha1
+kind: VirtualTopic
+metadata:
+  name: orders.eu
+spec:
+  physicalTopic: orders-v2
+  valueFormat:
+    type: json
+    onDecodeError: include
+  filter:
+    type: cel
+    expression: value.region == "eu"
+    errorHeader: false
+```
 
 ## Managing
 
@@ -116,7 +164,7 @@ spec:
 |-----------------------|-------------------------------------------------------------------------------------|
 | `physicalTopic`       | Required. `topic` above.                                                            |
 | `virtualTopic`        | `name` above. Defaults to `metadata.name`; set it for names Kubernetes rejects. Immutable. |
-| `exposePhysicalTopic`, `filter`, `valueFormat` | As above.                                                  |
+| `exposePhysicalTopic`, `filter`, `valueFormat`, `transformations` | As above.                               |
 | `deletionPolicy`      | `Delete` (default) removes the virtual topic on deletion, `Retain` keeps it.        |
 
 Ownership, adoption and status are described in [Kubernetes operator](/docs/operator#ownership).
