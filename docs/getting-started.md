@@ -37,10 +37,6 @@ gateway:
       enabled: true
       publicUrl: http://localhost:8080
       auth:
-        type: oauth
-        bootstrapUser:
-          username: admin@example.com
-          password: ${KAWA_ADMIN_PASSWORD}
         settings:
           signingKey: ${KAWA_SIGNING_KEY}
           loginUrl: http://localhost:5173/admin/login
@@ -68,14 +64,16 @@ kubectl -n kawa port-forward svc/kawa-studio 5173:80 &
 kubectl -n kawa port-forward svc/kawa-gateway 8080:8080
 ```
 
-Open `http://localhost:5173/admin/` and sign in as `admin@example.com`. The chart generated the password on install:
+Open `http://localhost:5173/admin/`. Studio asks for the setup token the gateway printed at startup, then an email
+and password for the first admin user:
 
 ```bash
-kubectl -n kawa get secret kawa-gateway -o jsonpath='{.data.admin-password}' | base64 -d
+kubectl -n kawa logs deploy/kawa-gateway | grep -A12 'kawa setup'
 ```
 
-The generated password and signing key stay the same across upgrades. To choose your own, set
-`gateway.secrets.adminPassword` and `gateway.secrets.signingKey`.
+This holds for one replica, the chart's default. With more, set the token yourself; see
+[First admin user](/docs/modules/authentication#first-admin-user). To create the first admin user from config instead, set
+`bootstrapUser`.
 
 ### 3. Connect a client
 
@@ -88,7 +86,7 @@ Clients outside the cluster need an address the gateway advertises: set `adverti
 ### Next steps
 
 - To serve Studio on a real host, set `ingress.enabled`, `ingress.host` and its `tls`, and
-  change `loginUrl`, `redirectUris` and `allowedOrigins` to that host.
+  change `admin.publicUrl`, `loginUrl`, `redirectUris` and `allowedOrigins` to match.
 - The [configuration reference](/docs/configuration) lists every gateway setting, and the
   admin API reference is served at `/docs` on the admin port.
 - To manage virtual topics as `VirtualTopic` resources, install the [Kubernetes operator](/docs/operator) next to the gateway.

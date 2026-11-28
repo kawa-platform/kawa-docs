@@ -31,7 +31,7 @@ There are two kinds of gateway configuration:
 |-------------------------------------------------------|-------------|----------------------------------------------------------------------------------------------------------------|
 | `gateway.config`                                      | `{}`        | The gateway config, described in the sections below. Mounted as `/etc/kawa/config.yaml`.                        |
 | `gateway.existingConfigMap`                           | none        | A ConfigMap with a `config.yaml` key, used instead of `gateway.config`. Set `gateway.service.kafkaPort` and `adminPort` to match. |
-| `gateway.secrets.adminPassword`, `.signingKey`        | generated   | Exposed as `KAWA_ADMIN_PASSWORD` and `KAWA_SIGNING_KEY`. Generated on first install and kept across upgrades.   |
+| `gateway.secrets.adminPassword`, `.signingKey`        | generated   | Exposed as `KAWA_ADMIN_PASSWORD` and `KAWA_SIGNING_KEY`. Generated on first install and kept across upgrades. `KAWA_ADMIN_PASSWORD` counts only when `bootstrapUser.password` references it. |
 | `gateway.secrets.existingSecret`                      | none        | A Secret with keys `admin-password` and `signing-key`, used instead.                                           |
 | `gateway.logLevel`                                    | `INFO`      | Gateway log level.                                                                                             |
 | `gateway.adminReset`                                  | `false`     | Resets the bootstrap admin's password on start. Set for one upgrade, then unset. See [Recovering from a lockout](/docs/modules/authentication#recovering-from-a-lockout). |
@@ -172,11 +172,11 @@ The admin HTTP server: admin API, Studio backend and `/docs`.
 | `enabled`   | bool   | `false`                | Start the admin server.                                                                        |
 | `host`      | string | `0.0.0.0`              | Bind address.                                                                                  |
 | `port`      | int    | `8080`                 | Bind port. `0` is ephemeral.                                                                   |
-| `publicUrl` | string | `http://<host>:<port>` | The absolute `http(s)` URL clients reach the admin API at, e.g. through an ingress: scheme, host and optional port, no path. See below. |
+| `publicUrl` | string | `http://<host>:<port>` | The absolute `http(s)` URL clients reach the admin API at, e.g. through an ingress: scheme, host and optional port, no path. Required with `oauth` and the default `0.0.0.0` bind address. See below. |
 | `cors`      | object | none                   | Omit to disable CORS.                                                                          |
-| `auth`      | object | `type: none`           | See below.                                                                                     |
+| `auth`      | object | `type: oauth`          | See below.                                                                                     |
 
-With `type: none`, the API is open and every request runs as principal `admin`. Use `oauth` anywhere it is reachable by others.
+With `type: none`, the API is open and every request runs as principal `admin`; kawa logs a warning on every start.
 
 `publicUrl` is the URL clients reach the admin API at. kawa uses it in the URLs it hands out:
 
@@ -206,9 +206,11 @@ Read from the file only, never written to the config topic.
 
 | Field           | Type   | Default | Description                                                                                         |
 |-----------------|--------|---------|-----------------------------------------------------------------------------------------------------|
-| `type`          | string | `none`  | `none` or `oauth`.                                                                                  |
-| `bootstrapUser` | object | none    | `username` (an email) and `password`. Seeds the first admin user when none exist; ignored afterwards. |
+| `type`          | string | `oauth` | `oauth` or `none`.                                                                                  |
+| `bootstrapUser` | object | none    | `username` (an email) and `password`. Seeds the first admin user when none exist; ignored afterwards. Unset: the first admin user is created in Studio, see [First admin user](/docs/modules/authentication#first-admin-user). |
 | `settings`      | object | `{}`    | Settings for the selected `type`.                                                                   |
+
+With `oauth`, startup fails with one message naming every missing setting: `loginUrl`, `redirectUris`, and `admin.publicUrl` when the bind address is a wildcard.
 
 `oauth` settings:
 
